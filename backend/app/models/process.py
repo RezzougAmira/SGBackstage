@@ -10,6 +10,8 @@ class Process(Base):
     id = Column(Integer, primary_key=True, index=True)
     nom = Column(String(255), nullable=False)
     description = Column(String, nullable=True)
+    diagramme_url = Column(String, nullable=True)
+    diagramme_type = Column(String, nullable=True)
     domaine_id = Column(Integer, ForeignKey("domaines.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

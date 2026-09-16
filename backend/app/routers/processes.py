@@ -4,7 +4,7 @@ from typing import List
 from ..database import get_db
 from ..models.process import Process
 from ..models.etape import Etape
-from ..schemas.process import ProcessCreate, ProcessResponse
+from ..schemas.process import ProcessCreate, ProcessUpdate, ProcessResponse
 
 router = APIRouter(prefix="/api/domaines/{domaine_id}/processes", tags=["processes"])
 
@@ -43,7 +43,7 @@ def create_process(domaine_id: int, process: ProcessCreate, db: Session = Depend
 
 
 @router.put("/{process_id}", response_model=ProcessResponse)
-def update_process(domaine_id: int, process_id: int, process: ProcessCreate, db: Session = Depends(get_db)):
+def update_process(domaine_id: int, process_id: int, process: ProcessUpdate, db: Session = Depends(get_db)):
     db_process = db.query(Process).filter(
         Process.id == process_id,
         Process.domaine_id == domaine_id

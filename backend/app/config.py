@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 1440  # 24 heures
 
+    # Supabase Storage
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_BUCKET: str = "process-diagrammes"
+
     # Serveur
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 3001

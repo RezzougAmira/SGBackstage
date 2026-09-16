@@ -7,6 +7,7 @@ from .routers import (
     masques_router, services_router, procedures_router, tables_router,
     attributs_router, dcs_router, archives_router, search_router
 )
+from .routers.upload import router as upload_router
 
 settings = get_settings()
 
@@ -42,6 +43,7 @@ app.include_router(attributs_router)
 app.include_router(dcs_router)
 app.include_router(archives_router)
 app.include_router(search_router)
+app.include_router(upload_router)
 
 
 @app.get("/")
