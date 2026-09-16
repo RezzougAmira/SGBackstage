@@ -1,4 +1,4 @@
-# SGB TechTrace
+# SGBackstage
 
 **Plateforme web de documentation technique et de traçabilité des évolutions du système SGB**
 
@@ -651,7 +651,7 @@ Masque (toujours requis)
 
 ```
 ┌────────────────────────────┐
-│ SGB TechTrace              │
+│ SGBackstage              │
 │                            │
 │  ● Dashboard               │
 │                            │

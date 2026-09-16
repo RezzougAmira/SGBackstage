@@ -24,7 +24,7 @@ function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 p-4">
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-gray-800">SGB TechTrace</h1>
+        <h1 className="text-xl font-bold text-gray-800">SGBackstage</h1>
         <p className="text-sm text-gray-500">Documentation technique</p>
       </div>
 

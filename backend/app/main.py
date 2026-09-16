@@ -15,7 +15,7 @@ Base.metadata.create_all(bind=engine)
 
 # Créer l'application FastAPI
 app = FastAPI(
-    title="SGB TechTrace API",
+    title="SGBackstage API",
     description="API pour la plateforme de documentation technique du SGB",
     version="1.0.0"
 )
@@ -47,7 +47,7 @@ app.include_router(search_router)
 @app.get("/")
 def root():
     return {
-        "message": "SGB TechTrace API",
+        "message": "SGBackstage API",
         "docs": "/docs",
         "version": "1.0.0"
     }
