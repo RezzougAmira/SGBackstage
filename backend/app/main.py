@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from .config import get_settings
 from .database import engine, Base
 from .routers import (
-    auth_router, domaines_router, processes_router, etapes_router,
+    auth_router, domaines_router, processes_router, etapes_router, etapes_standalone_router,
     masques_router, services_router, procedures_router, tables_router,
     attributs_router, dcs_router, archives_router, search_router
 )
@@ -13,6 +14,48 @@ settings = get_settings()
 
 # Créer les tables
 Base.metadata.create_all(bind=engine)
+
+
+def apply_schema_patches() -> None:
+    """Aligne le schéma sur les modèles après la création initiale des tables.
+
+    create_all() ne modifie jamais une table existante, donc les changements de
+    colonnes sont déployés par des requêtes idempotentes.
+    """
+    patches = [
+        # La colonne image_url a été renommée image_key : elle stocke une clé de
+        # stockage, pas une URL. C'est fait avant le ADD COLUMN pour que le
+        # renommage ne bute pas sur une colonne déjà créée.
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'masques' AND column_name = 'image_url'
+            ) THEN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'masques' AND column_name = 'image_key'
+                ) THEN
+                    UPDATE masques SET image_key = image_url
+                    WHERE image_key IS NULL AND image_url IS NOT NULL;
+                    ALTER TABLE masques DROP COLUMN image_url;
+                ELSE
+                    ALTER TABLE masques RENAME COLUMN image_url TO image_key;
+                END IF;
+            END IF;
+        END $$
+        """,
+        "ALTER TABLE masques ADD COLUMN IF NOT EXISTS image_key VARCHAR",
+        "ALTER TABLE processes ADD COLUMN IF NOT EXISTS diagramme_url VARCHAR",
+        "ALTER TABLE processes ADD COLUMN IF NOT EXISTS diagramme_type VARCHAR",
+    ]
+    with engine.begin() as conn:
+        for statement in patches:
+            conn.execute(text(statement))
+
+
+apply_schema_patches()
 
 # Créer l'application FastAPI
 app = FastAPI(
@@ -35,6 +78,7 @@ app.include_router(auth_router)
 app.include_router(domaines_router)
 app.include_router(processes_router)
 app.include_router(etapes_router)
+app.include_router(etapes_standalone_router)
 app.include_router(masques_router)
 app.include_router(services_router)
 app.include_router(procedures_router)

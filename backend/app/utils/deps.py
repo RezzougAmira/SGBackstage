@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.user import User
-from .auth import decode_access_token
+from .auth import TokenError, decode_access_token
 
 security = HTTPBearer()
 
@@ -13,22 +13,25 @@ async def get_current_user(
     db: Session = Depends(get_db)
 ) -> User:
     token = credentials.credentials
-    payload = decode_access_token(token)
-    if payload is None:
+    try:
+        payload = decode_access_token(token)
+    except TokenError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token invalide ou expiré"
+            detail=exc.reason,
+            headers={"WWW-Authenticate": "Bearer"},
         )
+
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token invalide"
+            detail="Token invalide : identifiant utilisateur absent"
         )
     user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Utilisateur non trouvé"
+            detail="Utilisateur introuvable : le compte a peut-être été supprimé"
         )
     return user

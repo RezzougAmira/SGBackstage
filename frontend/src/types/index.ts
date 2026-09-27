@@ -27,12 +27,15 @@ export interface Domaine {
   created_at: string;
   updated_at: string;
   process_count?: number;
+  masque_count?: number;
 }
 
 export interface Process {
   id: number;
   nom: string;
   description: string | null;
+  diagramme_url: string | null;
+  diagramme_type: string | null;
   domaine_id: number;
   created_at: string;
   updated_at: string;
@@ -49,6 +52,41 @@ export interface Etape {
   updated_at: string;
 }
 
+export interface TableRef {
+  id: number;
+  nom: string;
+}
+
+export interface ProcedureRef {
+  id: number;
+  nom: string;
+  description: string | null;
+  tables: TableRef[];
+}
+
+export interface ServiceRef {
+  id: number;
+  nom: string;
+  methode_http: string | null;
+  url: string | null;
+  input_desc: string | null;
+  output_desc: string | null;
+  procedures: ProcedureRef[];
+}
+
+export interface MasqueRef {
+  id: number;
+  code: string;
+  nom: string;
+  description: string | null;
+  image_key: string | null;
+  services: ServiceRef[];
+}
+
+export interface EtapeDetail extends Etape {
+  masques: MasqueRef[];
+}
+
 // ======================
 // COUCHE TECHNIQUE
 // ======================
@@ -57,6 +95,7 @@ export interface Masque {
   code: string;
   nom: string;
   description: string | null;
+  image_key: string | null;
   created_at: string;
   updated_at: string;
 }

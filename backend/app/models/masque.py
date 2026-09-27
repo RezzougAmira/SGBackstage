@@ -11,6 +11,7 @@ class Masque(Base):
     code = Column(String(50), unique=True, nullable=False)
     nom = Column(String(255), nullable=False)
     description = Column(String, nullable=True)
+    image_key = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

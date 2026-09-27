@@ -9,15 +9,22 @@ from ..schemas.domaine import DomaineCreate, DomaineResponse
 router = APIRouter(prefix="/api/domaines", tags=["domaines"])
 
 
+def _serialize(domaine: Domaine):
+    domaine_dict = DomaineResponse.from_orm(domaine)
+    domaine_dict.process_count = len(domaine.processes)
+    masque_ids = set()
+    for process in domaine.processes:
+        for etape in process.etapes:
+            for em in etape.masques:
+                masque_ids.add(em.masque_id)
+    domaine_dict.masque_count = len(masque_ids)
+    return domaine_dict
+
+
 @router.get("/", response_model=List[DomaineResponse])
 def list_domaines(db: Session = Depends(get_db)):
     domaines = db.query(Domaine).all()
-    result = []
-    for domaine in domaines:
-        domaine_dict = DomaineResponse.from_orm(domaine)
-        domaine_dict.process_count = len(domaine.processes)
-        result.append(domaine_dict)
-    return result
+    return [_serialize(domaine) for domaine in domaines]
 
 
 @router.get("/{domaine_id}", response_model=DomaineResponse)
@@ -25,9 +32,7 @@ def get_domaine(domaine_id: int, db: Session = Depends(get_db)):
     domaine = db.query(Domaine).filter(Domaine.id == domaine_id).first()
     if not domaine:
         raise HTTPException(status_code=404, detail="Domaine non trouvé")
-    domaine_dict = DomaineResponse.from_orm(domaine)
-    domaine_dict.process_count = len(domaine.processes)
-    return domaine_dict
+    return _serialize(domaine)
 
 
 @router.post("/", response_model=DomaineResponse, status_code=201)

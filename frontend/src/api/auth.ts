@@ -7,4 +7,6 @@ export const authApi = {
 
   register: (data: { email: string; password: string; name: string }) =>
     api.post<User>('/api/auth/register', data),
+
+  me: () => api.get<User>('/api/auth/me'),
 };

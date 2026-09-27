@@ -26,7 +26,7 @@ export function DCForm({ onSubmit, onCancel }: DCFormProps) {
   const [services, setServices] = useState<Service[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
-  const [attributs, setAttributs] = useState<Attribut[]>([]);
+  const [attributs] = useState<Attribut[]>([]);
 
   // Éléments sélectionnés
   const [selectedMasques, setSelectedMasques] = useState<SelectedItem[]>([]);

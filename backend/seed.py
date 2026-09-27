@@ -51,11 +51,12 @@ def seed():
         # DOMAINES
         # ======================
         domaines = [
-            Domaine(nom="Commerce", description="Gestion des opérations commerciales et commerciaux"),
-            Domaine(nom="Crédit", description="Gestion des crédits, prêts et échéanciers"),
-            Domaine(nom="Monétique", description="Opérations de carte bancaire et monétique"),
-            Domaine(nom="Clientèle", description="Gestion des informations clients et comptes"),
-            Domaine(nom="Compensation", description="Opérations de compensation interbancaire"),
+            Domaine(nom="Commerce extérieur", description="Couverture des opérations et des échanges relatifs au commerce extérieur de la banque"),
+            Domaine(nom="Télécompense", description="Traitement des opérations de télécompensation et des échanges interbancaires"),
+            Domaine(nom="Monétique", description="Gestion des opérations liées aux cartes bancaires et aux systèmes de paiement électronique"),
+            Domaine(nom="CRM", description="Gestion de la relation client et des outils associés"),
+            Domaine(nom="BI", description="Conception et exploitation des solutions de Business Intelligence et de reporting"),
+            Domaine(nom="Crédits", description="Gestion du cycle de vie des crédits, prêts et échéanciers"),
         ]
         db.add_all(domaines)
         db.commit()

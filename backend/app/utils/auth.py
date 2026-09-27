@@ -26,9 +26,31 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> Optional[dict]:
+class TokenError(Exception):
+    """Token refusé, avec la cause exacte."""
+
+    def __init__(self, reason: str, expired: bool = False):
+        self.reason = reason
+        self.expired = expired
+        super().__init__(reason)
+
+
+def decode_access_token(token: str) -> dict:
+    """Décode un JWT et lève TokenError.
+
+    Distingue un token expiré (cas normal, il suffit de se reconnecter) d'une
+    signature invalide (cas anormal : JWT_SECRET différent de celui utilisé à
+    l'émission). Sans cette distinction les deux remontent le même message.
+    """
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-        return payload
+        return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise TokenError(
+            f"Token expiré (validité {settings.JWT_EXPIRATION_MINUTES} min). Reconnectez-vous.",
+            expired=True,
+        )
     except JWTError:
-        return None
+        raise TokenError(
+            "Signature de token invalide : le JWT_SECRET du serveur a peut-être changé. "
+            "Reconnectez-vous."
+        )

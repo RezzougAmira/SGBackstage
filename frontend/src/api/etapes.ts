@@ -1,9 +1,11 @@
 import { api } from './client';
-import { Etape } from '../types';
+import { Etape, EtapeDetail } from '../types';
 
 export const etapesApi = {
   get: (processId: number, id: number) =>
-    api.get<Etape>(`/api/processes/${processId}/etapes/${id}`),
+    api.get<EtapeDetail>(`/api/processes/${processId}/etapes/${id}`),
+
+  getById: (id: number) => api.get<EtapeDetail>(`/api/etapes/${id}`),
 
   create: (processId: number, data: { nom: string; description?: string; ordre: number }) =>
     api.post<Etape>(`/api/processes/${processId}/etapes`, { ...data, process_id: processId }),

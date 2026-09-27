@@ -1,6 +1,6 @@
 // Configuration du client API
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
 
 class ApiClient {
   private baseUrl: string;
@@ -22,10 +22,23 @@ class ApiClient {
     localStorage.removeItem('token');
   }
 
+  /**
+   * Un 401 signifie que le token est absent, expiré ou invalide. On purge
+   * alors la session et on prévient l'app, sinon l'interface reste "connectée"
+   * alors que toutes les requêtes échouent.
+   */
+  private handleUnauthorized(endpoint: string) {
+    if (endpoint.startsWith('/api/auth/login')) return;
+
+    this.clearToken();
+    localStorage.removeItem('user');
+    window.dispatchEvent(new Event('auth:expired'));
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     if (this.token) {
@@ -36,6 +49,10 @@ class ApiClient {
       ...options,
       headers,
     });
+
+    if (response.status === 401) {
+      this.handleUnauthorized(endpoint);
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Erreur réseau' }));
@@ -73,6 +90,58 @@ class ApiClient {
   // DELETE
   async delete<T>(endpoint: string): Promise<T> {
     return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
+  // GET binaire — utilisé pour les images, qui ne peuvent pas passer par
+  // <img src> car le navigateur n'y joint pas l'en-tête Authorization.
+  async getBlob(endpoint: string): Promise<Blob> {
+    const headers: Record<string, string> = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (response.status === 401) {
+      this.handleUnauthorized(endpoint);
+    }
+
+    if (!response.ok) {
+      throw new Error(`Erreur ${response.status}`);
+    }
+
+    return response.blob();
+  }
+
+  // POST multipart/form-data — le Content-Type est laissé au navigateur
+  // pour qu'il ajoute la boundary du formulaire.
+  async upload<T>(endpoint: string, form: FormData): Promise<T> {
+    const headers: Record<string, string> = {};
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+
+    if (response.status === 401) {
+      this.handleUnauthorized(endpoint);
+    }
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Erreur réseau' }));
+      throw new Error(error.detail || 'Erreur serveur');
+    }
+
+    return response.json();
   }
 }
 

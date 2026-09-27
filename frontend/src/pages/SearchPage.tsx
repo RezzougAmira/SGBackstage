@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { SearchResults } from '../types';
 import { searchApi } from '../api/search';
 import { Breadcrumb } from '../components/Breadcrumb';
+import { SearchIdleHint, SearchSkeleton } from '../components/ui/pageSkeletons';
 
 export function SearchPage() {
   const [query, setQuery] = useState('');
@@ -33,7 +34,7 @@ export function SearchPage() {
       </div>
 
       <form onSubmit={handleSearch} className="mb-6">
-        <div className="flex space-x-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             value={query}
@@ -44,14 +45,18 @@ export function SearchPage() {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 sm:w-auto"
           >
             {loading ? 'Recherche...' : 'Rechercher'}
           </button>
         </div>
       </form>
 
-      {results && (
+      {loading && <SearchSkeleton />}
+
+      {!loading && !results && <SearchIdleHint />}
+
+      {!loading && results && (
         <div className="space-y-6">
           {results.masques.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { DCDetail } from '../types';
 import { dcApi } from '../api/dc';
 import { Breadcrumb } from '../components/Breadcrumb';
+import { DetailSkeleton } from '../components/ui/pageSkeletons';
 
 export function DCDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +26,7 @@ export function DCDetailPage() {
   }, [id]);
 
   if (loading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return <DetailSkeleton />;
   }
 
   if (!dc) {
@@ -38,7 +39,7 @@ export function DCDetailPage() {
 
       <div className="mb-6">
         <h1 className="text-2xl font-bold">{dc.numero} — {dc.titre}</h1>
-        <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
           <span>Date : {new Date(dc.date).toLocaleDateString('fr-FR')}</span>
           {dc.archive_id && <span>Archive : {dc.archive_id}</span>}
         </div>

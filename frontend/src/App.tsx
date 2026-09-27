@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
-import { Layout } from './components/Layout';
+import { AppLayout } from './components/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DomainesPage } from './pages/DomainesPage';
@@ -11,27 +11,30 @@ import { DCListPage } from './pages/DCListPage';
 import { DCDetailPage } from './pages/DCDetailPage';
 import { DCCreatePage } from './pages/DCCreatePage';
 import { SearchPage } from './pages/SearchPage';
+import { TablesAttributsPage } from './pages/TablesAttributsPage';
+import { TableDetailPage } from './pages/TableDetailPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { FullScreenSkeleton } from './components/ui/Skeleton';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+    return <FullScreenSkeleton />;
   }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  return <Layout>{children}</Layout>;
+  return <>{children}</>;
 }
 
 function AppRoutes() {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+    return <FullScreenSkeleton />;
   }
 
   return (
@@ -40,78 +43,36 @@ function AppRoutes() {
         path="/login"
         element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
       />
+
       <Route
-        path="/"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <AppLayout />
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/domaines"
-        element={
-          <ProtectedRoute>
-            <DomainesPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/domaines/:id"
-        element={
-          <ProtectedRoute>
-            <DomaineDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/processes/:id"
-        element={
-          <ProtectedRoute>
-            <ProcessDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/etapes/:id"
-        element={
-          <ProtectedRoute>
-            <EtapeDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dcs"
-        element={
-          <ProtectedRoute>
-            <DCListPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dcs/new"
-        element={
-          <ProtectedRoute>
-            <DCCreatePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/dcs/:id"
-        element={
-          <ProtectedRoute>
-            <DCDetailPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/search"
-        element={
-          <ProtectedRoute>
-            <SearchPage />
-          </ProtectedRoute>
-        }
-      />
+      >
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/domaines" element={<DomainesPage />} />
+        <Route path="/domaines/:id" element={<DomaineDetailPage />} />
+        <Route path="/processes/:id" element={<ProcessDetailPage />} />
+        <Route path="/etapes/:id" element={<EtapeDetailPage />} />
+        <Route path="/dcs" element={<DCListPage />} />
+        <Route path="/demandes-de-changement" element={<DCListPage />} />
+        <Route path="/dcs/new" element={<DCCreatePage />} />
+        <Route path="/dcs/:id" element={<DCDetailPage />} />
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="/masques" element={<NotFoundPage />} />
+        <Route path="/services" element={<NotFoundPage />} />
+        <Route path="/procedures" element={<NotFoundPage />} />
+        <Route path="/tables" element={<TablesAttributsPage />} />
+        <Route path="/tables/:id" element={<TableDetailPage />} />
+        <Route path="/archives" element={<NotFoundPage />} />
+        <Route path="/profil" element={<NotFoundPage />} />
+        <Route path="/administration" element={<NotFoundPage />} />
+        <Route path="/processus" element={<NotFoundPage />} />
+        <Route path="/etapes" element={<NotFoundPage />} />
+      </Route>
+
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

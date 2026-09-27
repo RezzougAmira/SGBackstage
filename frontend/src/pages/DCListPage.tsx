@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { DC } from '../types';
 import { dcApi } from '../api/dc';
 import { Breadcrumb } from '../components/Breadcrumb';
+import { DCListSkeleton } from '../components/ui/pageSkeletons';
 
 export function DCListPage() {
   const [dcs, setDcs] = useState<DC[]>([]);
@@ -30,14 +31,14 @@ export function DCListPage() {
   );
 
   if (loading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return <DCListSkeleton />;
   }
 
   return (
     <div>
       <Breadcrumb items={[{ label: 'Demandes de changement' }]} />
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Demandes de changement</h1>
         <Link
           to="/dcs/new"
@@ -57,7 +58,7 @@ export function DCListPage() {
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="overflow-x-auto bg-white rounded-lg shadow">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>

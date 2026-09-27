@@ -4,6 +4,7 @@ import { Stats } from '../types';
 import { searchApi } from '../api/search';
 import { dcApi } from '../api/dc';
 import { DC } from '../types';
+import { DashboardSkeleton } from '../components/ui/pageSkeletons';
 
 export function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -29,7 +30,7 @@ export function DashboardPage() {
   }, []);
 
   if (loading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -38,7 +39,7 @@ export function DashboardPage() {
 
       {/* Compteurs */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           <StatCard label="Domaines" value={stats.domaines} color="blue" />
           <StatCard label="Process" value={stats.processes} color="green" />
           <StatCard label="Étapes" value={stats.etapes} color="purple" />

@@ -9,10 +9,10 @@ export const masquesApi = {
 
   get: (id: number) => api.get<Masque>(`/api/masques/${id}`),
 
-  create: (data: { code: string; nom: string; description?: string }) =>
+  create: (data: { code: string; nom: string; description?: string; image_key?: string | null }) =>
     api.post<Masque>('/api/masques', data),
 
-  update: (id: number, data: { code: string; nom: string; description?: string }) =>
+  update: (id: number, data: { code: string; nom: string; description?: string; image_key?: string | null }) =>
     api.put<Masque>(`/api/masques/${id}`, data),
 
   delete: (id: number) => api.delete(`/api/masques/${id}`),

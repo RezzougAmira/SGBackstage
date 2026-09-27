@@ -15,6 +15,7 @@ class DomaineResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     process_count: Optional[int] = 0
+    masque_count: Optional[int] = 0
 
     class Config:
         from_attributes = True

@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { User, Token } from '../types';
+import { User } from '../types';
 import { authApi } from '../api/auth';
 import { api } from '../api/client';
 
@@ -18,19 +18,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Vérifier le token existant
+    // Un 401 sur n'importe quelle requête purge la session et lève cet évènement.
+    const handleExpired = () => setUser(null);
+    window.addEventListener('auth:expired', handleExpired);
+
+    // Vérifier le token existant auprès de l'API : un token expiré ou signé avec
+    // une autre clésecrète doit déconnecter, pas laisser l'app à moitié valide.
     const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    if (token && storedUser) {
-      try {
-        api.setToken(token);
-        setUser(JSON.parse(storedUser));
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-      }
+    if (!token) {
+      setLoading(false);
+      return () => window.removeEventListener('auth:expired', handleExpired);
     }
-    setLoading(false);
+
+    api.setToken(token);
+    authApi
+      .me()
+      .then((user) => {
+        localStorage.setItem('user', JSON.stringify(user));
+        setUser(user);
+      })
+      .catch(() => {
+        api.clearToken();
+        localStorage.removeItem('user');
+        setUser(null);
+      })
+      .finally(() => setLoading(false));
+
+    return () => window.removeEventListener('auth:expired', handleExpired);
   }, []);
 
   const login = async (email: string, password: string) => {

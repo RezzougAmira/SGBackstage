@@ -1,10 +1,40 @@
-import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Domaine, Process } from '../types';
-import { domainesApi } from '../api/domaines';
-import { Breadcrumb } from '../components/Breadcrumb';
-import { Modal } from '../components/Modal';
-import { ProcessForm } from '../components/forms/ProcessForm';
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { Domaine, Process } from "../types";
+import { domainesApi } from "../api/domaines";
+import { Breadcrumb } from "../components/Breadcrumb";
+import { Modal } from "../components/Modal";
+import { ProcessForm } from "../components/forms/ProcessForm";
+import { DomaineDetailSkeleton } from "../components/ui/pageSkeletons";
+
+function PlusIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+      <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ProcessIcon() {
+  return (
+    <svg className="h-7 w-7 text-[#004a86]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <rect x="3" y="4" width="6" height="5" rx="1.5" />
+      <rect x="15" y="15" width="6" height="5" rx="1.5" />
+      <path d="M9 6.5h4a2 2 0 0 1 2 2v1M6 9v7a2 2 0 0 0 2 2h4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CountBadge({ count, label }: { count: number | string; label: string }) {
+  return (
+    <span className="flex items-center gap-2 rounded-full bg-[#f6f8fa] px-3 py-1.5 text-[13px] text-[#071c38] dark:bg-white/10 dark:text-gray-200">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#004a86] text-[11px] font-semibold text-white">
+        {count}
+      </span>
+      {label}
+    </span>
+  );
+}
 
 export function DomaineDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,7 +53,7 @@ export function DomaineDetailPage() {
       setDomaine(domaineData);
       setProcesses(processesData);
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error("Erreur:", error);
     } finally {
       setLoading(false);
     }
@@ -33,60 +63,85 @@ export function DomaineDetailPage() {
     fetchData();
   }, [id]);
 
-  const handleCreateProcess = async (data: { nom: string; description?: string }) => {
+  const handleCreateProcess = async (_data: { nom: string; description?: string }) => {
     if (!id) return;
-    await domainesApi.listProcesses(parseInt(id));
     await fetchData();
     setShowModal(false);
   };
 
   if (loading) {
-    return <div className="text-center py-8">Chargement...</div>;
+    return <DomaineDetailSkeleton />;
   }
 
   if (!domaine) {
-    return <div className="text-center py-8">Domaine non trouvé</div>;
+    return <div className="py-8 text-center">Domaine non trouvé</div>;
   }
 
   return (
     <div>
-      <Breadcrumb items={[{ label: 'Métiers', path: '/domaines' }, { label: domaine.nom }]} />
+      <Breadcrumb items={[{ label: "Métiers", path: "/domaines" }, { label: domaine.nom }]} />
 
-      <div className="flex items-center justify-between mb-6">
+      {/* Titre */}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">{domaine.nom}</h1>
+          <h1 className="font-poppins text-3xl font-bold tracking-tight text-[#0c1d31] dark:text-white">
+            {domaine.nom}
+          </h1>
           {domaine.description && (
-            <p className="text-gray-600 mt-1">{domaine.description}</p>
+            <p className="mt-1 max-w-2xl font-poppins text-sm text-[#0c1d31]/70 dark:text-white/60">
+              {domaine.description}
+            </p>
           )}
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="flex h-[46px] shrink-0 items-center gap-2 rounded-xl bg-[#003049] px-5 py-3 font-poppins text-sm font-semibold text-white hover:bg-[#00263a]"
         >
-          + Ajouter un process
+          <PlusIcon />
+          Nouveau process
         </button>
       </div>
 
-      <div className="space-y-4">
+      {/* Liste des processus */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         {processes.length === 0 ? (
-          <div className="text-center py-8 bg-white rounded-lg shadow text-gray-500">
+          <div className="col-span-full rounded-2xl bg-white py-10 text-center font-poppins text-sm text-[#525f6d] shadow-sm dark:bg-[#131313] dark:text-white/60">
             Aucun process pour ce domaine
           </div>
         ) : (
           processes.map((process) => (
-            <Link
+            <article
               key={process.id}
-              to={`/processes/${process.id}`}
-              className="block p-6 bg-white rounded-lg shadow hover:shadow-md transition"
+              className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-sm transition-transform duration-200 hover:scale-[1.02] hover:shadow-lg dark:bg-[#131313]"
             >
-              <h2 className="text-xl font-semibold mb-2">{process.nom}</h2>
-              <p className="text-gray-600 text-sm mb-4">
-                {process.description || 'Pas de description'}
-              </p>
-              <div className="text-sm text-gray-500">
-                {process.etape_count || 0} étapes
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-[#e6e8f5] dark:bg-white/10">
+                  <ProcessIcon />
+                </div>
+                <div>
+                  <h2 className="font-poppins text-[19px] font-bold text-[#071c38] dark:text-white">
+                    {process.nom}
+                  </h2>
+                  <p className="mt-1 font-poppins text-[13px] text-[#071c38]/60 dark:text-gray-400">
+                    {process.description || "Pas de description"}
+                  </p>
+                </div>
               </div>
-            </Link>
+
+              <CountBadge count={process.etape_count || 0} label="Étapes" />
+
+              <Link
+                to={`/processes/${process.id}`}
+                state={{
+                  nom: process.nom,
+                  description: process.description,
+                  diagramme_url: process.diagramme_url,
+                }}
+                className="mt-auto self-end rounded-full border border-[#004a86] px-5 py-2 font-poppins text-[13px] font-medium text-[#004a86] hover:bg-[#004a86] hover:text-white dark:border-[#4aa1de] dark:text-[#4aa1de] dark:hover:bg-[#4aa1de] dark:hover:text-white"
+              >
+                Voir Plus
+              </Link>
+            </article>
           ))
         )}
       </div>
