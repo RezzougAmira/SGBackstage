@@ -1,14 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
 from ..models.etape import Etape
+from ..models.masque import EtapeMasque
+from ..utils import impact
 from ..schemas.etape import (
     EtapeCreate,
     EtapeResponse,
     EtapeReorder,
     EtapeDetailResponse,
+    EtapeImpact,
+    EtapeMasqueImpact,
+    EtapeSuppressionResult,
+    EtapeDetachMasqueResult,
+    SuppressionRapport,
     MasqueRef,
+    FonctionRef,
     ServiceRef,
     ProcedureRef,
     TableRef,
@@ -25,6 +34,9 @@ def _build_detail(etape: Etape) -> EtapeDetailResponse:
         description=etape.description,
         ordre=etape.ordre,
         process_id=etape.process_id,
+        # Le nom du processus permet d'afficher un titre complet sur la page
+        # de l'étape, y compris après un rechargement direct de l'URL.
+        process_nom=etape.process.nom if etape.process else None,
         created_at=etape.created_at,
         updated_at=etape.updated_at,
     )
@@ -57,7 +69,13 @@ def _build_detail(etape: Etape) -> EtapeDetailResponse:
                         tables=[TableRef(id=t.table.id, nom=t.table.nom) for t in proc.tables],
                     )
                 )
-            mref.services.append(sref)
+            fref = FonctionRef(
+                id=svc.id,
+                nom=svc.nom,
+                description=None,
+                services=[sref],
+            )
+            mref.fonctions.append(fref)
         data.masques.append(mref)
     return data
 
@@ -68,20 +86,102 @@ def list_etapes(process_id: int, db: Session = Depends(get_db)):
     return [EtapeResponse.from_orm(e) for e in etapes]
 
 
-@router.get("/{etape_id}", response_model=EtapeDetailResponse)
-def get_etape(process_id: int, etape_id: int, db: Session = Depends(get_db)):
+def _charger_etape(db: Session, process_id: int, etape_id: int) -> Etape:
     etape = db.query(Etape).filter(
         Etape.id == etape_id,
         Etape.process_id == process_id
     ).first()
     if not etape:
         raise HTTPException(status_code=404, detail="Étape non trouvée")
-    return _build_detail(etape)
+    return etape
+
+
+def _impact_masques(db: Session, etape: Etape) -> List[EtapeMasqueImpact]:
+    """Dimensionne, pour chaque masque de l'étape, ce que sa suppression coûterait."""
+    elements = []
+    for em in etape.masques:
+        masque = em.masque
+        if not masque:
+            continue
+        etapes_utilisatrices = impact.etapes_du_masque(db, masque.id)
+        services = [ms.service for ms in masque.services if ms.service]
+        service_ids = [s.id for s in services]
+        elements.append(
+            EtapeMasqueImpact(
+                id=masque.id,
+                code=masque.code,
+                nom=masque.nom,
+                etape_count=len(etapes_utilisatrices),
+                autres_etapes=[
+                    impact.libelle_etape(e)
+                    for e in etapes_utilisatrices
+                    if e.id != etape.id
+                ],
+                dcs=impact.dcs_de_masque(db, masque.id),
+                # L'interface présente un service par « fonction » : les deux
+                # listes portent le même cardinal.
+                fonctions_count=len(services),
+                services_count=len(services),
+                procedures_count=impact.compter_procedures(db, service_ids),
+            )
+        )
+    return elements
+
+
+@router.get("/{etape_id}", response_model=EtapeDetailResponse)
+def get_etape(process_id: int, etape_id: int, db: Session = Depends(get_db)):
+    return _build_detail(_charger_etape(db, process_id, etape_id))
+
+
+@etapes_standalone_router.get("/etapes/{etape_id}/impact", response_model=EtapeImpact)
+def get_etape_impact(etape_id: int, db: Session = Depends(get_db)):
+    """Ce que la suppression de l'étape va coûter, pour la confirmation."""
+    etape = db.query(Etape).filter(Etape.id == etape_id).first()
+    if not etape:
+        raise HTTPException(status_code=404, detail="Étape non trouvée")
+    return EtapeImpact(
+        dcs=impact.dcs_de_etape(db, etape.id),
+        masques=_impact_masques(db, etape),
+    )
 
 
 @router.post("/", response_model=EtapeResponse, status_code=201)
 def create_etape(process_id: int, etape: EtapeCreate, db: Session = Depends(get_db)):
-    db_etape = Etape(**etape.model_dump())
+    existing = (
+        db.query(Etape)
+        .filter(Etape.process_id == process_id, Etape.nom == etape.nom)
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Une étape avec ce nom existe déjà dans ce processus"
+        )
+
+    # L'ordre est une position dans le flux : il doit se situer entre le début
+    # et la fin de la liste existante, sinon l'étape n'a pas de place.
+    dernier_ordre = (
+        db.query(func.max(Etape.ordre)).filter(Etape.process_id == process_id).scalar() or 0
+    )
+    if etape.ordre < 1 or etape.ordre > dernier_ordre + 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"L'ordre doit être compris entre 1 et {dernier_ordre + 1} "
+                f"pour {dernier_ordre} étape(s) existante(s)."
+            ),
+        )
+
+    # Insertion : les étapes situées à la position demandée ou après reculent
+    # d'un rang pour libérer la place, l'ordre reste 1..N sans doublon.
+    if etape.ordre <= dernier_ordre:
+        (
+            db.query(Etape)
+            .filter(Etape.process_id == process_id, Etape.ordre >= etape.ordre)
+            .update({Etape.ordre: Etape.ordre + 1}, synchronize_session=False)
+        )
+
+    db_etape = Etape(**{**etape.model_dump(), "process_id": process_id})
     db.add(db_etape)
     db.commit()
     db.refresh(db_etape)
@@ -90,12 +190,7 @@ def create_etape(process_id: int, etape: EtapeCreate, db: Session = Depends(get_
 
 @router.put("/{etape_id}", response_model=EtapeResponse)
 def update_etape(process_id: int, etape_id: int, etape: EtapeCreate, db: Session = Depends(get_db)):
-    db_etape = db.query(Etape).filter(
-        Etape.id == etape_id,
-        Etape.process_id == process_id
-    ).first()
-    if not db_etape:
-        raise HTTPException(status_code=404, detail="Étape non trouvée")
+    db_etape = _charger_etape(db, process_id, etape_id)
 
     for key, value in etape.model_dump(exclude_unset=True).items():
         setattr(db_etape, key, value)
@@ -105,17 +200,66 @@ def update_etape(process_id: int, etape_id: int, etape: EtapeCreate, db: Session
     return db_etape
 
 
-@router.delete("/{etape_id}", status_code=204)
-def delete_etape(process_id: int, etape_id: int, db: Session = Depends(get_db)):
-    db_etape = db.query(Etape).filter(
-        Etape.id == etape_id,
-        Etape.process_id == process_id
-    ).first()
-    if not db_etape:
-        raise HTTPException(status_code=404, detail="Étape non trouvée")
+@router.delete("/{etape_id}", response_model=EtapeSuppressionResult)
+def delete_etape(
+    process_id: int,
+    etape_id: int,
+    supprimer_masques: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Supprime l'étape, et ses masques seulement si l'utilisateur le demande.
+
+    Par défaut l'étape disparaît mais les masques sont conservés : ils peuvent
+    être portés par d'autres étapes du même domaine. Le choix est explicite
+    parce que supprimer un masque emporte ses liens vers toutes les autres
+    étapes et vers les demandes de changement qui le citent.
+    """
+    db_etape = _charger_etape(db, process_id, etape_id)
+
+    # Une demande de changement porte sur une étape : la supprimer effacerait le
+    # rattachement sans laisser de trace. On refuse plutôt que de choisir.
+    impact.refuser_si_reference_dc(
+        impact.dcs_de_etape(db, db_etape.id), "cette étape"
+    )
+
+    # Les liens sont relevés avant la suppression : une fois l'étape supprimée,
+    # ses liens vers les masques disparaissent avec elle.
+    masques = [em.masque for em in db_etape.masques if em.masque]
+    supprimes: List[str] = []
+    conserves: List[str] = []
 
     db.delete(db_etape)
+    db.flush()
+
+    if supprimer_masques:
+        for masque in masques:
+            dcs = impact.dcs_de_masque(db, masque.id)
+            if dcs:
+                # La case a été cochée, mais l'historique de traçabilité prime :
+                # on garde le masque et on dit pourquoi.
+                conserves.append(
+                    f"{masque.code} — cité par {', '.join(dcs)}"
+                )
+                continue
+            others = [
+                e for e in impact.etapes_du_masque(db, masque.id)
+            ]
+            detail = (
+                f" — également utilisé dans {len(others)} autre(s) étape(s)"
+                if others
+                else ""
+            )
+            db.delete(masque)
+            supprimes.append(f"{masque.code} — {masque.nom}{detail}")
+
     db.commit()
+
+    return EtapeSuppressionResult(
+        etape=SuppressionRapport(nom=db_etape.nom, supprimes=[db_etape.nom]),
+        masques=SuppressionRapport(
+            nom="Masques associés", supprimes=supprimes, conserves=conserves
+        ),
+    )
 
 
 @router.put("/reorder")
@@ -137,3 +281,35 @@ def get_etape_standalone(etape_id: int, db: Session = Depends(get_db)):
     if not etape:
         raise HTTPException(status_code=404, detail="Étape non trouvée")
     return _build_detail(etape)
+
+
+@etapes_standalone_router.delete(
+    "/etapes/{etape_id}/masques/{masque_id}", response_model=EtapeDetachMasqueResult
+)
+def detach_masque_de_etape(etape_id: int, masque_id: int, db: Session = Depends(get_db)):
+    """Retire un masque de cette étape sans toucher au masque lui-même.
+
+    C'est le retrait « souple » : le masque reste dans la bibliothèque et dans
+    les autres étapes où il est utilisé. Le détachement est demandé au client
+    pour ne pas laisser un objet partager entre plusieurs étapes orphelin.
+    """
+    etape = db.query(Etape).filter(Etape.id == etape_id).first()
+    if not etape:
+        raise HTTPException(status_code=404, detail="Étape non trouvée")
+
+    lien = (
+        db.query(EtapeMasque)
+        .filter(
+            EtapeMasque.etape_id == etape_id,
+            EtapeMasque.masque_id == masque_id,
+        )
+        .first()
+    )
+    if not lien:
+        raise HTTPException(
+            status_code=404, detail="Ce masque n'est pas rattaché à cette étape"
+        )
+
+    db.delete(lien)
+    db.commit()
+    return EtapeDetachMasqueResult(message="Masque retiré de l'étape")

@@ -6,7 +6,8 @@ from .database import engine, Base
 from .routers import (
     auth_router, domaines_router, processes_router, etapes_router, etapes_standalone_router,
     masques_router, services_router, procedures_router, tables_router,
-    attributs_router, dcs_router, archives_router, search_router
+    attributs_router, dcs_router, archives_router, search_router,
+    etape_masques_router
 )
 from .routers.upload import router as upload_router
 
@@ -23,9 +24,6 @@ def apply_schema_patches() -> None:
     colonnes sont déployés par des requêtes idempotentes.
     """
     patches = [
-        # La colonne image_url a été renommée image_key : elle stocke une clé de
-        # stockage, pas une URL. C'est fait avant le ADD COLUMN pour que le
-        # renommage ne bute pas sur une colonne déjà créée.
         """
         DO $$
         BEGIN
@@ -49,6 +47,7 @@ def apply_schema_patches() -> None:
         "ALTER TABLE masques ADD COLUMN IF NOT EXISTS image_key VARCHAR",
         "ALTER TABLE processes ADD COLUMN IF NOT EXISTS diagramme_url VARCHAR",
         "ALTER TABLE processes ADD COLUMN IF NOT EXISTS diagramme_type VARCHAR",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key VARCHAR",
     ]
     with engine.begin() as conn:
         for statement in patches:
@@ -80,6 +79,7 @@ app.include_router(processes_router)
 app.include_router(etapes_router)
 app.include_router(etapes_standalone_router)
 app.include_router(masques_router)
+app.include_router(etape_masques_router)
 app.include_router(services_router)
 app.include_router(procedures_router)
 app.include_router(tables_router)

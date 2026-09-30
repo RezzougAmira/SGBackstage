@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Domaine, Process } from "../types";
 import { domainesApi } from "../api/domaines";
+import { processesApi } from "../api/processes";
 import { Breadcrumb } from "../components/Breadcrumb";
-import { Modal } from "../components/Modal";
 import { ProcessForm } from "../components/forms/ProcessForm";
 import { DomaineDetailSkeleton } from "../components/ui/pageSkeletons";
 
@@ -42,6 +42,10 @@ export function DomaineDetailPage() {
   const [processes, setProcesses] = useState<Process[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number>();
+
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const fetchData = async () => {
     if (!id) return;
@@ -63,10 +67,17 @@ export function DomaineDetailPage() {
     fetchData();
   }, [id]);
 
-  const handleCreateProcess = async (_data: { nom: string; description?: string }) => {
+  const showToast = (message: string) => {
+    setToast(message);
+    toastTimer.current = window.setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleCreateProcess = async (data: { nom: string; description?: string }) => {
     if (!id) return;
+    const process = await processesApi.create(parseInt(id), data);
     await fetchData();
     setShowModal(false);
+    showToast(`Process "${process.nom}" créé avec succès.`);
   };
 
   if (loading) {
@@ -146,12 +157,21 @@ export function DomaineDetailPage() {
         )}
       </div>
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Nouveau process">
+      {showModal && (
         <ProcessForm
           onSubmit={handleCreateProcess}
           onCancel={() => setShowModal(false)}
         />
-      </Modal>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[80] flex items-center gap-2 rounded-xl border border-[#26A69A]/50 bg-white px-5 py-3 text-sm font-medium text-[#0a7d74] shadow-2xl dark:bg-[#131313] dark:text-teal-300">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

@@ -27,4 +27,7 @@ export const servicesApi = {
   }) => api.put<Service>(`/api/services/${id}`, data),
 
   delete: (id: number) => api.delete(`/api/services/${id}`),
+
+  assignToMasque: (serviceId: number, masqueId: number) =>
+    api.post<Service>(`/api/services/${serviceId}/assign-masque/${masqueId}`),
 };

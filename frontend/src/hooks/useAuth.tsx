@@ -9,6 +9,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  // Permet à la page de profil de rafraîchir l'utilisateur partout dans l'app
+  // (avatar de la topbar, sidebar) après une modification.
+  setUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         isAuthenticated: !!user,
+        setUser,
       }}
     >
       {children}

@@ -8,6 +8,8 @@ export interface User {
   email: string;
   name: string;
   role: string;
+  blocked?: number;
+  avatar_key?: string | null;
   created_at: string;
 }
 
@@ -74,17 +76,79 @@ export interface ServiceRef {
   procedures: ProcedureRef[];
 }
 
+export interface FonctionRef {
+  id: number;
+  nom: string;
+  description: string | null;
+  services: ServiceRef[];
+}
+
 export interface MasqueRef {
   id: number;
   code: string;
   nom: string;
   description: string | null;
   image_key: string | null;
-  services: ServiceRef[];
+  fonctions: FonctionRef[];
 }
 
 export interface EtapeDetail extends Etape {
+  process_nom?: string | null;
   masques: MasqueRef[];
+}
+
+// ======================
+// SUPPRESSION ET IMPACT
+// ======================
+// Ce qu'un objet traîne derrière lui : les étapes qui le partagent et les
+// demandes de changement qui le citent. Un objet cité par une DC ne peut pas
+// être effacé, sinon l'historique de traçabilité disparaît.
+export interface EtapeMasqueImpact {
+  id: number;
+  code: string;
+  nom: string;
+  etape_count: number;
+  autres_etapes: string[];
+  dcs: string[];
+  fonctions_count: number;
+  services_count: number;
+  procedures_count: number;
+}
+
+export interface EtapeImpact {
+  dcs: string[];
+  masques: EtapeMasqueImpact[];
+}
+
+export interface MasqueServiceImpact {
+  id: number;
+  nom: string;
+  masque_count: number;
+  autres_masques: string[];
+  dcs: string[];
+  procedures: string[];
+}
+
+export interface MasqueImpact {
+  dcs: string[];
+  etapes: string[];
+  services: MasqueServiceImpact[];
+}
+
+export interface SuppressionRapport {
+  nom: string;
+  supprimes: string[];
+  conserves: string[];
+}
+
+export interface EtapeSuppressionResult {
+  etape: SuppressionRapport;
+  masques: SuppressionRapport;
+}
+
+export interface MasqueSuppressionResult {
+  masque: SuppressionRapport;
+  services: SuppressionRapport;
 }
 
 // ======================

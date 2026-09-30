@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { Domaine } from "../types";
 import { domainesApi } from "../api/domaines";
-import { Modal } from "../components/Modal";
 import { DomaineForm } from "../components/forms/DomaineForm";
 import { DomainesSkeleton } from "../components/ui/pageSkeletons";
 
@@ -52,6 +52,10 @@ export function DomainesPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [query, setQuery] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number>();
+
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const fetchDomaines = async () => {
     try {
@@ -86,10 +90,16 @@ export function DomainesPage() {
     [domaines, query]
   );
 
+  const showToast = (message: string) => {
+    setToast(message);
+    toastTimer.current = window.setTimeout(() => setToast(null), 3000);
+  };
+
   const handleCreate = async (data: { nom: string; description?: string }) => {
-    await domainesApi.create(data);
+    const domaine = await domainesApi.create(data);
     await fetchDomaines();
     setShowModal(false);
+    showToast(`Domaine "${domaine.nom}" créé avec succès.`);
   };
 
   if (loading) {
@@ -157,12 +167,12 @@ export function DomainesPage() {
               <CountBadge count={d.masques} label="Masques" />
             </div>
 
-            <a
-              href={`/domaines/${d.id}`}
+            <Link
+              to={`/domaines/${d.id}`}
               className="mt-auto self-end rounded-full border border-[#004a86] px-5 py-2 text-[13px] font-medium text-[#004a86] hover:bg-[#004a86] hover:text-white dark:border-[#4aa1de] dark:text-[#4aa1de] dark:hover:bg-[#4aa1de] dark:hover:text-white"
             >
               Voir Plus
-            </a>
+            </Link>
           </article>
         ))}
 
@@ -173,12 +183,21 @@ export function DomainesPage() {
         )}
       </div>
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Nouveau domaine">
+      {showModal && (
         <DomaineForm
           onSubmit={handleCreate}
           onCancel={() => setShowModal(false)}
         />
-      </Modal>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[80] flex items-center gap-2 rounded-xl border border-[#26A69A]/50 bg-white px-5 py-3 text-sm font-medium text-[#0a7d74] shadow-2xl dark:bg-[#131313] dark:text-teal-300">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

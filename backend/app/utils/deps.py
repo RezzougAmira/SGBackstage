@@ -35,3 +35,18 @@ async def get_current_user(
             detail="Utilisateur introuvable : le compte a peut-être été supprimé"
         )
     return user
+
+
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Réserve une opération aux administrateurs.
+
+    Les routes de gestion des comptes exposent la liste des utilisateurs ou
+    permettent de modifier le rôle et le blocage : sans cette dépendance, un
+    developer authentifié pourrait les appeler directement.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Réservé aux administrateurs",
+        )
+    return current_user

@@ -1,11 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import re
 from ..database import get_db
-from ..models.masque import Masque
-from ..schemas.masque import MasqueCreate, MasqueResponse
+from ..models.etape import Etape
+from ..models.masque import EtapeMasque, Masque
+from ..models.service import MasqueService, Service
+from ..models.procedure import ProcedureStockee, ServiceProcedure
+from ..utils import impact
+from ..schemas.masque import (
+    MasqueCreate,
+    MasqueEtapeCreate,
+    MasqueResponse,
+    MasqueImpact,
+    MasqueServiceImpact,
+    MasqueSuppressionResult,
+    SuppressionRapport,
+)
 
 router = APIRouter(prefix="/api/masques", tags=["masques"])
+etape_masques_router = APIRouter(prefix="/api", tags=["masques"])
+
+CODE_LENGTH = 6
+CODE_PATTERN = re.compile(r"^[A-Z0-9]{6}$")
+
+
+def _validate_code(code: str) -> None:
+    """Le code est une référence courte et stable : 6 caractères alphanumériques."""
+    code = (code or "").strip().upper()
+    if not CODE_PATTERN.match(code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Le code du masque doit comporter exactement {CODE_LENGTH} caractères "
+                "lettres ou chiffres (ex : CE2100)."
+            ),
+        )
 
 
 @router.get("/", response_model=List[MasqueResponse])
@@ -26,14 +56,16 @@ def get_masque(masque_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=MasqueResponse, status_code=201)
 def create_masque(masque: MasqueCreate, db: Session = Depends(get_db)):
-    existing = db.query(Masque).filter(Masque.code == masque.code).first()
+    _validate_code(masque.code)
+
+    existing = db.query(Masque).filter(Masque.code == masque.code.strip().upper()).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Un masque avec ce code existe déjà"
         )
 
-    db_masque = Masque(**masque.model_dump())
+    db_masque = Masque(**{**masque.model_dump(), "code": masque.code.strip().upper()})
     db.add(db_masque)
     db.commit()
     db.refresh(db_masque)
@@ -54,11 +86,158 @@ def update_masque(masque_id: int, masque: MasqueCreate, db: Session = Depends(ge
     return db_masque
 
 
-@router.delete("/{masque_id}", status_code=204)
-def delete_masque(masque_id: int, db: Session = Depends(get_db)):
+@router.get("/{masque_id}/impact", response_model=MasqueImpact)
+def get_masque_impact(masque_id: int, db: Session = Depends(get_db)):
+    """Où le masque est utilisé, pour dimensionner la suppression."""
     db_masque = db.query(Masque).filter(Masque.id == masque_id).first()
     if not db_masque:
         raise HTTPException(status_code=404, detail="Masque non trouvé")
 
+    services = []
+    for ms in db_masque.services:
+        svc = ms.service
+        if not svc:
+            continue
+        autres = [m for m in impact.masques_du_service(db, svc.id) if m.id != db_masque.id]
+        procedures = [sp.procedure for sp in svc.procedures if sp.procedure]
+        services.append(
+            MasqueServiceImpact(
+                id=svc.id,
+                nom=svc.nom,
+                masque_count=len(impact.masques_du_service(db, svc.id)),
+                autres_masques=[f"{m.code} — {m.nom}" for m in autres],
+                dcs=impact.dcs_de_service(db, svc.id),
+                procedures=[f"{p.nom} ({p.id})" for p in procedures],
+            )
+        )
+
+    return MasqueImpact(
+        dcs=impact.dcs_de_masque(db, db_masque.id),
+        etapes=[
+            impact.libelle_etape(e)
+            for e in impact.etapes_du_masque(db, db_masque.id)
+        ],
+        services=services,
+    )
+
+
+@router.delete("/{masque_id}", response_model=MasqueSuppressionResult)
+def delete_masque(
+    masque_id: int,
+    supprimer_services: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Supprime un masque, et ses services seulement si l'utilisateur le demande.
+
+    Les liens avec les étapes disparaissent dans tous les cas : le masque
+    disparaît de la fiche. Restent à distinguer deux intentions :
+      - par défaut, les services et procédures sont conservés (un service peut
+        être appelé par plusieurs masques) ;
+      - sur demande explicite, ils sont effacés, mais uniquement s'ils ne
+        servent qu'ici et qu'aucune demande de changement ne les cite.
+    """
+    db_masque = db.query(Masque).filter(Masque.id == masque_id).first()
+    if not db_masque:
+        raise HTTPException(status_code=404, detail="Masque non trouvé")
+
+    impact.refuser_si_reference_dc(
+        impact.dcs_de_masque(db, db_masque.id), "ce masque"
+    )
+
+    # Relevé avant suppression : les liens masque→service partent avec le masque.
+    services = [ms.service for ms in db_masque.services if ms.service]
+    supprimes: List[str] = []
+    conserves: List[str] = []
+
     db.delete(db_masque)
+    db.flush()
+
+    if supprimer_services:
+        for service in services:
+            dcs = impact.dcs_de_service(db, service.id)
+            if dcs:
+                conserves.append(f"{service.nom} — cité par {', '.join(dcs)}")
+                continue
+            autres = [
+                m for m in impact.masques_du_service(db, service.id)
+            ]
+            if autres:
+                conserves.append(
+                    f"{service.nom} — encore appelé par "
+                    f"{len(autres)} autre(s) masque(s)"
+                )
+                continue
+
+            # Service orphelin : on emporte ses procédures, puis ses tables.
+            for sp in list(service.procedures):
+                procedure = sp.procedure
+                if not procedure:
+                    continue
+                dcs_proc = impact.dcs_de_procedure(db, procedure.id)
+                ailleurs = impact.services_de_la_procedure(
+                    db, procedure.id, exclude_service_id=service.id
+                )
+                if dcs_proc or ailleurs:
+                    conserves.append(
+                        f"{procedure.nom} — utilisé ailleurs ou cité par une DC"
+                    )
+                    continue
+                db.delete(procedure)
+                supprimes.append(f"{procedure.nom} (procédure stockée)")
+
+            db.delete(service)
+            supprimes.append(f"{service.nom} (service)")
+
     db.commit()
+
+    return MasqueSuppressionResult(
+        masque=SuppressionRapport(
+            nom=f"{db_masque.code} — {db_masque.nom}", supprimes=[db_masque.code]
+        ),
+        services=SuppressionRapport(
+            nom="Services et procédures", supprimes=supprimes, conserves=conserves
+        ),
+    )
+
+
+@etape_masques_router.post(
+    "/etapes/{etape_id}/masques", response_model=MasqueResponse, status_code=201
+)
+def create_masque_pour_etape(
+    etape_id: int, masque: MasqueEtapeCreate, db: Session = Depends(get_db)
+):
+    """Crée un masque et le rattache à l'étape, service appelé compris.
+
+    Le rattachement se fait dans la même transaction : un masque créé depuis
+    une étape ne peut pas exister sans y être lié.
+    """
+    etape = db.query(Etape).filter(Etape.id == etape_id).first()
+    if not etape:
+        raise HTTPException(status_code=404, detail="Étape non trouvée")
+
+    _validate_code(masque.code)
+
+    existing = db.query(Masque).filter(Masque.code == masque.code.strip().upper()).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un masque avec ce code existe déjà",
+        )
+
+    payload = masque.model_dump(exclude={"service"})
+    payload["code"] = payload["code"].strip().upper()
+    db_masque = Masque(**payload)
+    db.add(db_masque)
+    db.flush()
+
+    db.add(EtapeMasque(etape_id=etape_id, masque_id=db_masque.id))
+
+    if masque.service:
+        db_service = Service(**masque.service.model_dump())
+        db.add(db_service)
+        db.flush()
+        db.add(MasqueService(masque_id=db_masque.id, service_id=db_service.id))
+
+    db.commit()
+    db.refresh(db_masque)
+    return db_masque

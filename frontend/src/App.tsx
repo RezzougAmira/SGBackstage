@@ -13,6 +13,8 @@ import { DCCreatePage } from './pages/DCCreatePage';
 import { SearchPage } from './pages/SearchPage';
 import { TablesAttributsPage } from './pages/TablesAttributsPage';
 import { TableDetailPage } from './pages/TableDetailPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { MonProfilPage } from './pages/MonProfilPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { FullScreenSkeleton } from './components/ui/Skeleton';
 
@@ -25,6 +27,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+/**
+ * Réserve une page aux administrateurs.
+ *
+ * Ce n'est qu'un garde-fou d'interface : la vraie autorisation doit être
+ * appliquée côté API, sinon un appel direct contournerait cette page.
+ */
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+
+  if (user?.role !== 'admin') {
+    return <NotFoundPage />;
   }
 
   return <>{children}</>;
@@ -67,8 +85,15 @@ function AppRoutes() {
         <Route path="/tables" element={<TablesAttributsPage />} />
         <Route path="/tables/:id" element={<TableDetailPage />} />
         <Route path="/archives" element={<NotFoundPage />} />
-        <Route path="/profil" element={<NotFoundPage />} />
-        <Route path="/administration" element={<NotFoundPage />} />
+        <Route path="/profil" element={<MonProfilPage />} />
+        <Route
+          path="/administration"
+          element={
+            <RequireAdmin>
+              <ProfilePage />
+            </RequireAdmin>
+          }
+        />
         <Route path="/processus" element={<NotFoundPage />} />
         <Route path="/etapes" element={<NotFoundPage />} />
       </Route>

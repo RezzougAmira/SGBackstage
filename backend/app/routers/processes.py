@@ -35,7 +35,19 @@ def get_process(domaine_id: int, process_id: int, db: Session = Depends(get_db))
 
 @router.post("/", response_model=ProcessResponse, status_code=201)
 def create_process(domaine_id: int, process: ProcessCreate, db: Session = Depends(get_db)):
-    db_process = Process(**process.model_dump())
+    # Deux process portent le même nom dans un même domaine
+    existing = (
+        db.query(Process)
+        .filter(Process.domaine_id == domaine_id, Process.nom == process.nom)
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un process avec ce nom existe déjà dans ce domaine"
+        )
+
+    db_process = Process(**{**process.model_dump(), "domaine_id": domaine_id})
     db.add(db_process)
     db.commit()
     db.refresh(db_process)

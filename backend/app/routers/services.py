@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
-from ..models.service import Service
+from ..models.service import Service, MasqueService
+from ..models.masque import Masque
 from ..schemas.service import ServiceCreate, ServiceResponse
 
 router = APIRouter(prefix="/api/services", tags=["services"])
@@ -42,6 +43,28 @@ def update_service(service_id: int, service: ServiceCreate, db: Session = Depend
 
     db.commit()
     db.refresh(db_service)
+    return db_service
+
+
+@router.post("/{service_id}/assign-masque/{masque_id}", response_model=ServiceResponse)
+def assign_service_to_masque(service_id: int, masque_id: int, db: Session = Depends(get_db)):
+    db_service = db.query(Service).filter(Service.id == service_id).first()
+    if not db_service:
+        raise HTTPException(status_code=404, detail="Service non trouvé")
+
+    db_masque = db.query(Masque).filter(Masque.id == masque_id).first()
+    if not db_masque:
+        raise HTTPException(status_code=404, detail="Masque non trouvé")
+
+    existing = db.query(MasqueService).filter(
+        MasqueService.masque_id == masque_id,
+        MasqueService.service_id == service_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Service déjà associé à ce masque")
+
+    db.add(MasqueService(masque_id=masque_id, service_id=service_id))
+    db.commit()
     return db_service
 
 
