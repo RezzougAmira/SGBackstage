@@ -39,7 +39,6 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
   const [inputDesc, setInputDesc] = useState(initialData?.input_desc || '');
   const [outputDesc, setOutputDesc] = useState(initialData?.output_desc || '');
   const [controleur, setControleur] = useState(initialData?.controleur || '');
-  const [modifieBdd, setModifieBdd] = useState(initialData?.modifie_bdd || false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,7 +52,7 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
         input_desc: inputDesc || undefined,
         output_desc: outputDesc || undefined,
         controleur: controleur || undefined,
-        modifie_bdd: modifieBdd,
+        modifie_bdd: true,
       });
     } finally {
       setLoading(false);
@@ -127,18 +126,6 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
           className={inputClass}
           placeholder="ex: Informations client"
         />
-      </div>
-      <div className="col-span-2 flex items-center">
-        <input
-          type="checkbox"
-          id="modifie_bdd"
-          checked={modifieBdd}
-          onChange={(e) => setModifieBdd(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300 text-[#004A86] focus:ring-[#004A86]"
-        />
-        <label htmlFor="modifie_bdd" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-          Ce service modifie la base de données
-        </label>
       </div>
       <div className="col-span-2 mt-2 flex justify-end gap-3 border-t border-gray-100 pt-4 dark:border-white/10">
         <button type="button" onClick={onCancel} className={`${btnRedOutline} w-32`}>
