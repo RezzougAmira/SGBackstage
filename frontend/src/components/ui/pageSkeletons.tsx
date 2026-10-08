@@ -13,26 +13,70 @@ export function SkeletonBreadcrumb() {
   );
 }
 
-/** Tableau de bord : compteurs puis activité récente. */
+/** Tableau de bord : compteurs, activité, contributions, événements. */
 export function DashboardSkeleton() {
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-bold">
-        <span className="skeleton inline-block h-8 w-56 rounded" />
-      </h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-[42px] w-64 rounded-xl" />
+      </div>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
+      {/* Compteurs (12) */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {Array.from({ length: 12 }).map((_, i) => (
           <Skeleton key={i} className="h-[74px] rounded-lg" />
         ))}
       </div>
 
-      <div className="rounded-lg bg-white shadow">
+      {/* Activité 14 jours */}
+      <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#131313]">
+        <Skeleton className="mb-6 h-5 w-64" />
+        <div className="flex items-end gap-2">
+          {Array.from({ length: 14 }).map((_, i) => (
+            <Skeleton key={i} className={`flex-1 rounded-t ${i % 3 === 0 ? 'h-24' : 'h-16'}`} />
+          ))}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#131313]">
+          <Skeleton className="mb-4 h-5 w-56" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="mb-3 h-5 w-full rounded-full" />
+          ))}
+        </section>
+        <section className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#131313]">
+          <Skeleton className="mb-4 h-5 w-40" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="mb-3 flex items-center gap-3">
+              <SkeletonCircle size="h-8 w-8" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+        </section>
+      </div>
+
+      <div className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#131313]">
+        <Skeleton className="mb-4 h-5 w-44" />
+        <div className="divide-y">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-3">
+              <Skeleton className="h-4 w-24 rounded-full" />
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-white shadow-sm dark:bg-[#131313]">
         <div className="border-b px-6 py-4">
-          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-5 w-60" />
         </div>
         <div className="divide-y">
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="flex items-center justify-between px-6 py-4">
               <div className="flex items-center gap-3">
                 <Skeleton className="h-4 w-24" />

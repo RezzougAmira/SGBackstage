@@ -15,6 +15,7 @@ import { TablesAttributsPage } from './pages/TablesAttributsPage';
 import { TableDetailPage } from './pages/TableDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { MonProfilPage } from './pages/MonProfilPage';
+import { HistoriquePage } from './pages/HistoriquePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { FullScreenSkeleton } from './components/ui/Skeleton';
 
@@ -70,6 +71,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/historique" element={<HistoriquePage />} />
         <Route path="/domaines" element={<DomainesPage />} />
         <Route path="/domaines/:id" element={<DomaineDetailPage />} />
         <Route path="/processes/:id" element={<ProcessDetailPage />} />

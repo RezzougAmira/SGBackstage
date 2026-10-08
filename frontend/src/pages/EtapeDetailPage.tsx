@@ -360,6 +360,8 @@ export function EtapeDetailPage() {
           }}
           hideService
           submitLabel="Enregistrer"
+          title="Modifier le masque"
+          subtitle="Mise à jour des informations du masque"
           onSubmit={handleEditMasque}
           onCancel={() => setMasqueEnEdition(null)}
         />

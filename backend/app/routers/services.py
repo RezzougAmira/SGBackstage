@@ -5,9 +5,12 @@ from ..database import get_db
 from ..models.service import Service, MasqueService
 from ..models.masque import Masque
 from ..models.procedure import ProcedureStockee, ServiceProcedure
+from ..models.user import User
 from ..schemas.service import ServiceCreate, ServiceResponse
 from ..schemas.procedure import ProcedureCreate, ProcedureResponse
 from ..utils import impact
+from ..utils.deps import get_current_user
+from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/services", tags=["services"])
 
@@ -36,7 +39,10 @@ def list_procedures_du_service(service_id: int, db: Session = Depends(get_db)):
     "/{service_id}/procedures", response_model=ProcedureResponse, status_code=201
 )
 def creer_et_attacher_procedure(
-    service_id: int, payload: ProcedureCreate, db: Session = Depends(get_db)
+    service_id: int,
+    payload: ProcedureCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Crée une procédure stockée et la rattache au service."""
     service = db.query(Service).filter(Service.id == service_id).first()
@@ -56,13 +62,28 @@ def creer_et_attacher_procedure(
     db.add(ServiceProcedure(service_id=service_id, procedure_id=procedure.id))
     db.commit()
     db.refresh(procedure)
+    enregistrer_historique(
+        db, utilisateur=user, action="creation", type_entite="procedure",
+        entite_id=procedure.id, nom_entite=procedure.nom,
+        apres=snapshot(procedure),
+    )
+    enregistrer_historique(
+        db, utilisateur=user, action="rattachement", type_entite="procedure",
+        entite_id=procedure.id, nom_entite=procedure.nom,
+        apres={"service_id": service_id, "procedure_id": procedure.id, "service_nom": service.nom},
+    )
     return procedure
 
 
 @router.post(
     "/{service_id}/procedures/{procedure_id}", response_model=ProcedureResponse
 )
-def attacher_procedure(service_id: int, procedure_id: int, db: Session = Depends(get_db)):
+def attacher_procedure(
+    service_id: int,
+    procedure_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """Rattache une procédure stockée existante au service."""
     service = db.query(Service).filter(Service.id == service_id).first()
     if not service:
@@ -90,11 +111,21 @@ def attacher_procedure(service_id: int, procedure_id: int, db: Session = Depends
 
     db.add(ServiceProcedure(service_id=service_id, procedure_id=procedure_id))
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="rattachement", type_entite="procedure",
+        entite_id=procedure.id, nom_entite=procedure.nom,
+        apres={"service_id": service_id, "procedure_id": procedure_id, "service_nom": service.nom},
+    )
     return procedure
 
 
 @router.delete("/{service_id}/procedures/{procedure_id}", status_code=204)
-def detacher_procedure(service_id: int, procedure_id: int, db: Session = Depends(get_db)):
+def detacher_procedure(
+    service_id: int,
+    procedure_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """Détache la procédure du service, sans la supprimer."""
     liaison = (
         db.query(ServiceProcedure)
@@ -109,8 +140,14 @@ def detacher_procedure(service_id: int, procedure_id: int, db: Session = Depends
             status_code=404, detail="Cette procédure n'est pas rattachée à ce service"
         )
 
+    nom_proc = liaison.procedure.nom if liaison.procedure else str(procedure_id)
     db.delete(liaison)
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="detachement", type_entite="procedure",
+        entite_id=procedure_id, nom_entite=nom_proc,
+        apres={"service_id": service_id, "procedure_id": procedure_id},
+    )
 
 
 @router.get("/", response_model=List[ServiceResponse])
@@ -128,30 +165,55 @@ def get_service(service_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=ServiceResponse, status_code=201)
-def create_service(service: ServiceCreate, db: Session = Depends(get_db)):
+def create_service(
+    service: ServiceCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_service = Service(**service.model_dump())
     db.add(db_service)
     db.commit()
     db.refresh(db_service)
+    enregistrer_historique(
+        db, utilisateur=user, action="creation", type_entite="service",
+        entite_id=db_service.id, nom_entite=db_service.nom,
+        apres=snapshot(db_service),
+    )
     return db_service
 
 
 @router.put("/{service_id}", response_model=ServiceResponse)
-def update_service(service_id: int, service: ServiceCreate, db: Session = Depends(get_db)):
+def update_service(
+    service_id: int,
+    service: ServiceCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_service = db.query(Service).filter(Service.id == service_id).first()
     if not db_service:
         raise HTTPException(status_code=404, detail="Service non trouvé")
 
+    avant = snapshot(db_service)
     for key, value in service.model_dump(exclude_unset=True).items():
         setattr(db_service, key, value)
 
     db.commit()
     db.refresh(db_service)
+    enregistrer_historique(
+        db, utilisateur=user, action="modification", type_entite="service",
+        entite_id=db_service.id, nom_entite=db_service.nom,
+        avant=avant, apres=snapshot(db_service),
+    )
     return db_service
 
 
 @router.post("/{service_id}/assign-masque/{masque_id}", response_model=ServiceResponse)
-def assign_service_to_masque(service_id: int, masque_id: int, db: Session = Depends(get_db)):
+def assign_service_to_masque(
+    service_id: int,
+    masque_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_service = db.query(Service).filter(Service.id == service_id).first()
     if not db_service:
         raise HTTPException(status_code=404, detail="Service non trouvé")
@@ -169,11 +231,20 @@ def assign_service_to_masque(service_id: int, masque_id: int, db: Session = Depe
 
     db.add(MasqueService(masque_id=masque_id, service_id=service_id))
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="rattachement", type_entite="service",
+        entite_id=service_id, nom_entite=db_service.nom,
+        apres={"masque_id": masque_id, "service_id": service_id, "masque_nom": db_masque.nom},
+    )
     return db_service
 
 
 @router.delete("/{service_id}", status_code=204)
-def delete_service(service_id: int, db: Session = Depends(get_db)):
+def delete_service(
+    service_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """Supprime le service de la base, avec tous ses liens.
 
     Refusé si une demande de changement le cite : la cascade supprimerait
@@ -187,5 +258,11 @@ def delete_service(service_id: int, db: Session = Depends(get_db)):
         impact.dcs_de_service(db, service_id), "ce service"
     )
 
+    avant = snapshot(db_service)
     db.delete(db_service)
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="suppression", type_entite="service",
+        entite_id=service_id, nom_entite=avant.get("nom", "?"),
+        avant=avant,
+    )

@@ -358,6 +358,13 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
             />
           </label>
           <button
+            type="button"
+            onClick={() => setAjoutOuvert(false)}
+            className="h-[42px] rounded-lg border border-[#e6e8f5] px-5 font-poppins text-sm font-semibold text-[#525f6d] transition hover:bg-[#e6e8f5] dark:border-white/10 dark:text-white/70 dark:hover:bg-white/10"
+          >
+            Annuler
+          </button>
+          <button
             type="submit"
             disabled={enregistrement || !titre.trim()}
             className="h-[42px] rounded-lg bg-[#003049] px-5 font-poppins text-sm font-semibold text-white transition hover:bg-[#00263a] disabled:opacity-50"
@@ -461,6 +468,14 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                         Créer un nouveau service
                       </button>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setAjoutServicePour(null)}
+                      className="mt-3 rounded-lg border border-[#e6e8f5] px-3 py-1.5 font-poppins text-xs font-semibold text-[#525f6d] transition hover:bg-[#e6e8f5] dark:border-white/10 dark:text-white/70 dark:hover:bg-white/10"
+                    >
+                      Annuler
+                    </button>
                   </div>
                 )}
 
@@ -525,12 +540,15 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                   },
                                 });
                               }}
-                              className="shrink-0 font-poppins text-xs font-semibold text-[#26A69A] underline-offset-2 hover:underline dark:text-teal-300"
+                              className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e0f2f1] hover:text-[#26A69A] dark:text-white/50 dark:hover:bg-teal-500/10"
                             >
-                              Modifier
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M17 3a2.85 2.83 0 114.01 4L8 20l-4 1 1-4L17 3z" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
                             </button>
                             <button
                               type="button"
+                              title="Retirer le service"
                               onClick={() => {
                                 setPorteeService("detacher");
                                 setServiceARetirer({
@@ -540,9 +558,11 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                   fonctionnaliteTitre: f.titre,
                                 });
                               }}
-                              className="shrink-0 font-poppins text-xs font-semibold text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                              className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
                             >
-                              Retirer
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
                             </button>
                           </div>
 
@@ -687,6 +707,13 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                         >
                                           {creationProc ? "Création..." : "Créer"}
                                         </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setAjoutProcedurePour(null)}
+                                          className="h-[38px] rounded-lg border border-[#e6e8f5] px-4 font-poppins text-xs font-semibold text-[#525f6d] transition hover:bg-[#e6e8f5] dark:border-white/10 dark:text-white/70 dark:hover:bg-white/10"
+                                        >
+                                          Annuler
+                                        </button>
                                       </div>
                                     </div>
                                   </div>
@@ -732,12 +759,15 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                                   description: p.description ?? "",
                                                 });
                                               }}
-                                              className="shrink-0 font-poppins text-xs font-semibold text-[#26A69A] underline-offset-2 hover:underline dark:text-teal-300"
+                                              className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e0f2f1] hover:text-[#26A69A] dark:text-white/50 dark:hover:bg-teal-500/10"
                                             >
-                                              Modifier
+                                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                                <path d="M17 3a2.85 2.83 0 114.01 4L8 20l-4 1 1-4L17 3z" strokeLinecap="round" strokeLinejoin="round" />
+                                              </svg>
                                             </button>
                                             <button
                                               type="button"
+                                              title="Retirer la procédure"
                                               onClick={() => {
                                                 setPorteeProcedure("detacher");
                                                 setProcedureARetirer({
@@ -747,9 +777,11 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                                   serviceNom: s.nom,
                                                 });
                                               }}
-                                              className="shrink-0 font-poppins text-xs font-semibold text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                                              className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
                                             >
-                                              Retirer
+                                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                                <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
+                                              </svg>
                                             </button>
                                           </div>
                                           {pOuverte && (
@@ -804,7 +836,7 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
           automatiquement à la fonctionnalité en cours. */}
       {creationServicePour !== null && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="no-scrollbar max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#131313]">
+          <div className="no-scrollbar max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#131313]">
             <div className="mb-6">
               <h2 className="text-xl font-bold text-[#0A2540] dark:text-white">
                 Nouveau service
@@ -835,7 +867,7 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
       {/* Modale « modifier un service » : formulaire prérempli. */}
       {serviceEnEdition && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="no-scrollbar max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#131313]">
+          <div className="no-scrollbar max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#131313]">
             <div className="mb-6">
               <h2 className="text-xl font-bold text-[#0A2540] dark:text-white">
                 Modifier le service
@@ -866,7 +898,7 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
       {/* Modale « modifier une procédure stockée » : formulaire prérempli. */}
       {procedureEnEdition && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-          <div className="no-scrollbar max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#131313]">
+          <div className="no-scrollbar max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#131313]">
             <div className="mb-6">
               <h2 className="text-xl font-bold text-[#0A2540] dark:text-white">
                 Modifier la procédure

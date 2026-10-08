@@ -24,6 +24,10 @@ interface MasqueFormProps {
     image_key?: string | null;
   };
   submitLabel?: string;
+  /** Titre de la boîte de dialogue (ex : « Modifier le masque »). */
+  title?: string;
+  /** Sous-titre sous le titre. */
+  subtitle?: string;
   /** En édition, on ne crée pas de service : la section est masquée. */
   hideService?: boolean;
   onSubmit: (data: MasqueFormData) => Promise<void>;
@@ -48,6 +52,8 @@ const btnTealOutline =
 export function MasqueForm({
   initialData,
   submitLabel = "Enregistrer",
+  title = "Ajouter un masque",
+  subtitle = "Écran de l'étape, capture associée et service appelé",
   hideService = false,
   onSubmit,
   onCancel,
@@ -196,10 +202,8 @@ export function MasqueForm({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-[#0A2540] dark:text-white">Ajouter un masque</h2>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Écran de l'étape, capture associée et service appelé
-          </p>
+          <h2 className="text-xl font-bold text-[#0A2540] dark:text-white">{title}</h2>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -395,13 +399,17 @@ export function MasqueForm({
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 dark:border-white/10">
             {submitError && <p className="w-full text-xs text-red-500">{submitError}</p>}
-            <button type="button" onClick={handleCancel} className={`${btnRedOutline} w-32`}>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className={`${btnRedOutline} w-40 whitespace-nowrap`}
+            >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading || uploading}
-              className={`${btnTealOutline} w-40`}
+              className={`${btnTealOutline} w-40 whitespace-nowrap`}
             >
               {loading ? "Création..." : submitLabel}
             </button>

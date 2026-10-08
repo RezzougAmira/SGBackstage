@@ -4,7 +4,10 @@ from typing import List, Optional
 from ..database import get_db
 from ..models.domaine import Domaine
 from ..models.process import Process
+from ..models.user import User
 from ..schemas.domaine import DomaineCreate, DomaineResponse
+from ..utils.deps import get_current_user
+from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/domaines", tags=["domaines"])
 
@@ -36,7 +39,11 @@ def get_domaine(domaine_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=DomaineResponse, status_code=201)
-def create_domaine(domaine: DomaineCreate, db: Session = Depends(get_db)):
+def create_domaine(
+    domaine: DomaineCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     # Vérifier l'unicité du nom
     existing = db.query(Domaine).filter(Domaine.nom == domaine.nom).first()
     if existing:
@@ -49,28 +56,54 @@ def create_domaine(domaine: DomaineCreate, db: Session = Depends(get_db)):
     db.add(db_domaine)
     db.commit()
     db.refresh(db_domaine)
+    enregistrer_historique(
+        db, utilisateur=user, action="creation", type_entite="domaine",
+        entite_id=db_domaine.id, nom_entite=db_domaine.nom,
+        apres=snapshot(db_domaine),
+    )
     return db_domaine
 
 
 @router.put("/{domaine_id}", response_model=DomaineResponse)
-def update_domaine(domaine_id: int, domaine: DomaineCreate, db: Session = Depends(get_db)):
+def update_domaine(
+    domaine_id: int,
+    domaine: DomaineCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_domaine = db.query(Domaine).filter(Domaine.id == domaine_id).first()
     if not db_domaine:
         raise HTTPException(status_code=404, detail="Domaine non trouvé")
 
+    avant = snapshot(db_domaine)
     for key, value in domaine.model_dump(exclude_unset=True).items():
         setattr(db_domaine, key, value)
 
     db.commit()
     db.refresh(db_domaine)
+    enregistrer_historique(
+        db, utilisateur=user, action="modification", type_entite="domaine",
+        entite_id=db_domaine.id, nom_entite=db_domaine.nom,
+        avant=avant, apres=snapshot(db_domaine),
+    )
     return db_domaine
 
 
 @router.delete("/{domaine_id}", status_code=204)
-def delete_domaine(domaine_id: int, db: Session = Depends(get_db)):
+def delete_domaine(
+    domaine_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_domaine = db.query(Domaine).filter(Domaine.id == domaine_id).first()
     if not db_domaine:
         raise HTTPException(status_code=404, detail="Domaine non trouvé")
 
+    avant = snapshot(db_domaine)
     db.delete(db_domaine)
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="suppression", type_entite="domaine",
+        entite_id=domaine_id, nom_entite=avant.get("nom", "?"),
+        avant=avant,
+    )

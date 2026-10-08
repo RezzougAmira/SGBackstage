@@ -305,17 +305,112 @@ export interface ArchiveDetail extends Archive {
 }
 
 // ======================
-// STATS
+// STATS & HISTORIQUE
 // ======================
 export interface Stats {
   domaines: number;
   processes: number;
   etapes: number;
   masques: number;
+  fonctionnalites: number;
   services: number;
+  procedures: number;
   tables: number;
+  attributs: number;
   dcs: number;
+  archives: number;
+  utilisateurs: number;
+  evenements: number;
+  activite_14j: { date: string; total: number }[];
+  repartition_par_type: {
+    type_entite: string;
+    creation: number;
+    modification: number;
+    suppression: number;
+    rattachement: number;
+    detachement: number;
+    reorder: number;
+    total: number;
+  }[];
+  top_contributeurs: { id: number; name: string; nb: number }[];
+  evenements_recents: HistoriqueEvent[];
 }
+
+export type HistoriqueAction =
+  | 'creation'
+  | 'modification'
+  | 'suppression'
+  | 'rattachement'
+  | 'detachement'
+  | 'reorder';
+
+export type HistoriqueTypeEntite =
+  | 'domaine'
+  | 'process'
+  | 'etape'
+  | 'masque'
+  | 'fonctionnalite'
+  | 'service'
+  | 'procedure'
+  | 'table'
+  | 'attribut'
+  | 'dc'
+  | 'archive'
+  | 'user';
+
+export interface HistoriqueEvent {
+  id: number;
+  utilisateur: { id: number; name: string; avatar_key: string | null } | null;
+  action: HistoriqueAction;
+  type_entite: HistoriqueTypeEntite;
+  entite_id: number | null;
+  nom_entite: string | null;
+  avant: Record<string, unknown> | null;
+  apres: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface HistoriqueResponse {
+  total: number;
+  page: number;
+  par_page: number;
+  evenements: HistoriqueEvent[];
+}
+
+export interface HistoriqueFilters {
+  action?: HistoriqueAction;
+  type_entite?: HistoriqueTypeEntite;
+  entite_id?: number;
+  utilisateur_id?: number;
+  depuis?: string;
+  jusqua?: string;
+  page?: number;
+  par_page?: number;
+}
+
+export const HISTORIQUE_ACTIONS: Record<HistoriqueAction, string> = {
+  creation: 'Ajout',
+  modification: 'Modification',
+  suppression: 'Suppression',
+  rattachement: 'Rattachement',
+  detachement: 'Détachement',
+  reorder: 'Réordonnancement',
+};
+
+export const HISTORIQUE_ENTITES: Record<HistoriqueTypeEntite, string> = {
+  domaine: 'Domaine',
+  process: 'Processus',
+  etape: 'Étape',
+  masque: 'Masque',
+  fonctionnalite: 'Fonctionnalité',
+  service: 'Service',
+  procedure: 'Procédure',
+  table: 'Table',
+  attribut: 'Attribut',
+  dc: 'Demande de changement',
+  archive: 'Archive',
+  user: 'Utilisateur',
+};
 
 // ======================
 // SEARCH

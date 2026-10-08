@@ -4,7 +4,10 @@ from typing import List
 from ..database import get_db
 from ..models.process import Process
 from ..models.etape import Etape
+from ..models.user import User
 from ..schemas.process import ProcessCreate, ProcessUpdate, ProcessResponse
+from ..utils.deps import get_current_user
+from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/domaines/{domaine_id}/processes", tags=["processes"])
 
@@ -34,7 +37,12 @@ def get_process(domaine_id: int, process_id: int, db: Session = Depends(get_db))
 
 
 @router.post("/", response_model=ProcessResponse, status_code=201)
-def create_process(domaine_id: int, process: ProcessCreate, db: Session = Depends(get_db)):
+def create_process(
+    domaine_id: int,
+    process: ProcessCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     # Deux process portent le même nom dans un même domaine
     existing = (
         db.query(Process)
@@ -51,11 +59,22 @@ def create_process(domaine_id: int, process: ProcessCreate, db: Session = Depend
     db.add(db_process)
     db.commit()
     db.refresh(db_process)
+    enregistrer_historique(
+        db, utilisateur=user, action="creation", type_entite="process",
+        entite_id=db_process.id, nom_entite=db_process.nom,
+        apres=snapshot(db_process),
+    )
     return db_process
 
 
 @router.put("/{process_id}", response_model=ProcessResponse)
-def update_process(domaine_id: int, process_id: int, process: ProcessUpdate, db: Session = Depends(get_db)):
+def update_process(
+    domaine_id: int,
+    process_id: int,
+    process: ProcessUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_process = db.query(Process).filter(
         Process.id == process_id,
         Process.domaine_id == domaine_id
@@ -63,16 +82,27 @@ def update_process(domaine_id: int, process_id: int, process: ProcessUpdate, db:
     if not db_process:
         raise HTTPException(status_code=404, detail="Process non trouvé")
 
+    avant = snapshot(db_process)
     for key, value in process.model_dump(exclude_unset=True).items():
         setattr(db_process, key, value)
 
     db.commit()
     db.refresh(db_process)
+    enregistrer_historique(
+        db, utilisateur=user, action="modification", type_entite="process",
+        entite_id=db_process.id, nom_entite=db_process.nom,
+        avant=avant, apres=snapshot(db_process),
+    )
     return db_process
 
 
 @router.delete("/{process_id}", status_code=204)
-def delete_process(domaine_id: int, process_id: int, db: Session = Depends(get_db)):
+def delete_process(
+    domaine_id: int,
+    process_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_process = db.query(Process).filter(
         Process.id == process_id,
         Process.domaine_id == domaine_id
@@ -80,5 +110,11 @@ def delete_process(domaine_id: int, process_id: int, db: Session = Depends(get_d
     if not db_process:
         raise HTTPException(status_code=404, detail="Process non trouvé")
 
+    avant = snapshot(db_process)
     db.delete(db_process)
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="suppression", type_entite="process",
+        entite_id=process_id, nom_entite=avant.get("nom", "?"),
+        avant=avant,
+    )

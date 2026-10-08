@@ -3,7 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
 from ..models.table import TableInfo
+from ..models.user import User
 from ..schemas.table import TableCreate, TableResponse
+from ..utils.deps import get_current_user
+from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/tables", tags=["tables"])
 
@@ -30,7 +33,11 @@ def get_table(table_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=TableResponse, status_code=201)
-def create_table(table: TableCreate, db: Session = Depends(get_db)):
+def create_table(
+    table: TableCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     existing = db.query(TableInfo).filter(
         TableInfo.nom == table.nom,
         TableInfo.base_donnees == table.base_donnees
@@ -45,28 +52,54 @@ def create_table(table: TableCreate, db: Session = Depends(get_db)):
     db.add(db_table)
     db.commit()
     db.refresh(db_table)
+    enregistrer_historique(
+        db, utilisateur=user, action="creation", type_entite="table",
+        entite_id=db_table.id, nom_entite=f"{db_table.nom} ({db_table.base_donnees})",
+        apres=snapshot(db_table),
+    )
     return db_table
 
 
 @router.put("/{table_id}", response_model=TableResponse)
-def update_table(table_id: int, table: TableCreate, db: Session = Depends(get_db)):
+def update_table(
+    table_id: int,
+    table: TableCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_table = db.query(TableInfo).filter(TableInfo.id == table_id).first()
     if not db_table:
         raise HTTPException(status_code=404, detail="Table non trouvée")
 
+    avant = snapshot(db_table)
     for key, value in table.model_dump(exclude_unset=True).items():
         setattr(db_table, key, value)
 
     db.commit()
     db.refresh(db_table)
+    enregistrer_historique(
+        db, utilisateur=user, action="modification", type_entite="table",
+        entite_id=db_table.id, nom_entite=f"{db_table.nom} ({db_table.base_donnees})",
+        avant=avant, apres=snapshot(db_table),
+    )
     return db_table
 
 
 @router.delete("/{table_id}", status_code=204)
-def delete_table(table_id: int, db: Session = Depends(get_db)):
+def delete_table(
+    table_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_table = db.query(TableInfo).filter(TableInfo.id == table_id).first()
     if not db_table:
         raise HTTPException(status_code=404, detail="Table non trouvée")
 
+    avant = snapshot(db_table)
     db.delete(db_table)
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="suppression", type_entite="table",
+        entite_id=table_id, nom_entite=f"{avant.get('nom', '?')} ({avant.get('base_donnees', '?')})",
+        avant=avant,
+    )

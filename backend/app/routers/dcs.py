@@ -3,9 +3,47 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
 from ..models.dc import DC, DCMasque, DCService, DCProcedure, DCTable, DCAttribut
+from ..models.user import User
 from ..schemas.dc import DCCreate, DCResponse
+from ..utils.deps import get_current_user
+from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/dcs", tags=["dcs"])
+
+
+def _impacts(dc: DC) -> dict:
+    """Copie des lignes d'impact (masques, services, …) pour le journal.
+
+    L'auteur est dérivé du token, jamais du corps de la requête : c'est la
+    trace qui fait foi, pas celle que le client choisirait d'écrire.
+    """
+    return {
+        "masques": [
+            {"masque_id": m.masque_id, "action": m.action, "details": m.details}
+            for m in dc.masques
+        ],
+        "services": [
+            {"service_id": s.service_id, "action": s.action, "details": s.details}
+            for s in dc.services
+        ],
+        "procedures": [
+            {"procedure_id": p.procedure_id, "action": p.action, "details": p.details}
+            for p in dc.procedures
+        ],
+        "tables": [
+            {"table_id": t.table_id, "action": t.action, "details": t.details}
+            for t in dc.tables
+        ],
+        "attributs": [
+            {"attribut_id": a.attribut_id, "action": a.action, "details": a.details}
+            for a in dc.attributs
+        ],
+    }
+
+
+def _capture(dc: DC) -> dict:
+    """Instantané complet d'une DC : ses champs ET ses lignes d'impact."""
+    return {**snapshot(dc), "impacts": _impacts(dc)}
 
 
 @router.get("/", response_model=List[DCResponse])
@@ -82,7 +120,11 @@ def get_dc(dc_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=DCResponse, status_code=201)
-def create_dc(dc: DCCreate, db: Session = Depends(get_db)):
+def create_dc(
+    dc: DCCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     # Vérifier l'unicité du numéro
     existing = db.query(DC).filter(DC.numero == dc.numero).first()
     if existing:
@@ -91,12 +133,12 @@ def create_dc(dc: DCCreate, db: Session = Depends(get_db)):
             detail="Une DC avec ce numéro existe déjà"
         )
 
-    # Créer la DC
+    # Créer la DC (l'auteur est celui du token)
     db_dc = DC(
         numero=dc.numero,
         titre=dc.titre,
         description=dc.description,
-        auteur_id=dc.auteur_id,
+        auteur_id=user.id,
         etape_id=dc.etape_id,
         archive_id=dc.archive_id
     )
@@ -156,14 +198,26 @@ def create_dc(dc: DCCreate, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(db_dc)
+    enregistrer_historique(
+        db, utilisateur=user, action="creation", type_entite="dc",
+        entite_id=db_dc.id, nom_entite=f"{db_dc.numero} — {db_dc.titre}",
+        apres=_capture(db_dc),
+    )
     return db_dc
 
 
 @router.put("/{dc_id}", response_model=DCResponse)
-def update_dc(dc_id: int, dc: DCCreate, db: Session = Depends(get_db)):
+def update_dc(
+    dc_id: int,
+    dc: DCCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_dc = db.query(DC).filter(DC.id == dc_id).first()
     if not db_dc:
         raise HTTPException(status_code=404, detail="DC non trouvée")
+
+    avant = _capture(db_dc)
 
     # Mettre à jour les champs principaux
     db_dc.numero = dc.numero
@@ -227,14 +281,29 @@ def update_dc(dc_id: int, dc: DCCreate, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(db_dc)
+    enregistrer_historique(
+        db, utilisateur=user, action="modification", type_entite="dc",
+        entite_id=dc_id, nom_entite=f"{db_dc.numero} — {db_dc.titre}",
+        avant=avant, apres=_capture(db_dc),
+    )
     return db_dc
 
 
 @router.delete("/{dc_id}", status_code=204)
-def delete_dc(dc_id: int, db: Session = Depends(get_db)):
+def delete_dc(
+    dc_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_dc = db.query(DC).filter(DC.id == dc_id).first()
     if not db_dc:
         raise HTTPException(status_code=404, detail="DC non trouvée")
 
+    avant = _capture(db_dc)
     db.delete(db_dc)
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="suppression", type_entite="dc",
+        entite_id=dc_id, nom_entite=f"{avant.get('numero', '?')} — {avant.get('titre', '?')}",
+        avant=avant,
+    )

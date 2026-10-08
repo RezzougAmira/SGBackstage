@@ -7,7 +7,7 @@ from .routers import (
     auth_router, domaines_router, processes_router, etapes_router, etapes_standalone_router,
     masques_router, services_router, procedures_router, tables_router,
     attributs_router, dcs_router, archives_router, search_router,
-    etape_masques_router, fonctionnalites_router
+    etape_masques_router, fonctionnalites_router, historique_router
 )
 from .routers.upload import router as upload_router
 
@@ -80,6 +80,22 @@ def apply_schema_patches() -> None:
         "ALTER TABLE fonctionnalites ALTER COLUMN masque_id SET NOT NULL",
         "ALTER TABLE fonctionnalites DROP COLUMN IF EXISTS etape_id",
         "CREATE INDEX IF NOT EXISTS ix_fonctionnalites_masque_id ON fonctionnalites(masque_id)",
+        # Journal des changements : qui, quand, sur quoi, et le détail avant/après.
+        """
+        CREATE TABLE IF NOT EXISTS historique (
+            id SERIAL PRIMARY KEY,
+            utilisateur_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            action VARCHAR(20) NOT NULL,
+            type_entite VARCHAR(30) NOT NULL,
+            entite_id INTEGER,
+            nom_entite VARCHAR(255),
+            avant JSONB,
+            apres JSONB,
+            created_at TIMESTAMP DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_historique_created_at ON historique(created_at)",
+        "CREATE INDEX IF NOT EXISTS ix_historique_type_entite ON historique(type_entite, entite_id)",
     ]
     with engine.begin() as conn:
         for statement in patches:
@@ -120,6 +136,7 @@ app.include_router(attributs_router)
 app.include_router(dcs_router)
 app.include_router(archives_router)
 app.include_router(search_router)
+app.include_router(historique_router)
 app.include_router(upload_router)
 
 
@@ -134,18 +151,109 @@ def root():
 
 @app.get("/api/stats")
 def get_stats():
+    """Compteurs et activité du journal, pour le tableau de bord."""
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import func
+
     from .database import SessionLocal
+    from .models.archive import Archive
+    from .models.attribut import Attribut
+    from .models.dc import DC
     from .models.domaine import Domaine
-    from .models.process import Process
     from .models.etape import Etape
+    from .models.fonctionnalite import Fonctionnalite
+    from .models.historique import Historique
     from .models.masque import Masque
+    from .models.procedure import ProcedureStockee
+    from .models.process import Process
     from .models.service import Service
     from .models.table import TableInfo
-    from .models.dc import DC
-    from .models.fonctionnalite import Fonctionnalite
+    from .models.user import User
 
     db = SessionLocal()
     try:
+        actions = ["creation", "modification", "suppression", "rattachement", "detachement", "reorder"]
+
+        # Activité des 14 derniers jours, par jour et par action.
+        aujourdhui = datetime.utcnow().date()
+        debut = aujourdhui - timedelta(days=13)
+        lignes = (
+            db.query(
+                func.date(Historique.created_at).label("jour"),
+                Historique.action,
+                func.count().label("nb"),
+            )
+            .filter(Historique.created_at >= datetime.combine(debut, datetime.min.time()))
+            .group_by("jour", Historique.action)
+            .all()
+        )
+        par_jour: dict = {}
+        for jour, action, nb in lignes:
+            par_jour.setdefault(str(jour), {})[action] = nb
+        activite_14j = []
+        for i in range(14):
+            jour = debut + timedelta(days=i)
+            serie = par_jour.get(str(jour), {})
+            activite_14j.append(
+                {
+                    "date": str(jour),
+                    "total": sum(serie.values()),
+                    **{a: serie.get(a, 0) for a in actions},
+                }
+            )
+
+        # Répartition des événements par type d'entité.
+        types = (
+            db.query(Historique.type_entite, Historique.action, func.count().label("nb"))
+            .group_by(Historique.type_entite, Historique.action)
+            .all()
+        )
+        par_type: dict = {}
+        for type_entite, action, nb in types:
+            par_type.setdefault(type_entite, {"type_entite": type_entite, **{a: 0 for a in actions}, "total": 0})
+            par_type[type_entite][action] = nb
+            par_type[type_entite]["total"] += nb
+        repartition_par_type = sorted(
+            par_type.values(), key=lambda t: t["total"], reverse=True
+        )
+
+        # Top contributeurs (5 premiers utilisateurs).
+        contributeurs = (
+            db.query(User.id, User.name, func.count(Historique.id).label("nb"))
+            .join(Historique, Historique.utilisateur_id == User.id)
+            .group_by(User.id, User.name)
+            .order_by(func.count(Historique.id).desc())
+            .limit(5)
+            .all()
+        )
+        top_contributeurs = [
+            {"id": uid, "name": name, "nb": nb}
+            for uid, name, nb in contributeurs
+        ]
+
+        # Derniers événements (pour la frise du tableau de bord).
+        recents = (
+            db.query(Historique)
+            .order_by(Historique.created_at.desc(), Historique.id.desc())
+            .limit(8)
+            .all()
+        )
+        evenements_recents = [
+            {
+                "id": h.id,
+                "utilisateur": {"id": h.utilisateur.id, "name": h.utilisateur.name}
+                if h.utilisateur
+                else None,
+                "action": h.action,
+                "type_entite": h.type_entite,
+                "entite_id": h.entite_id,
+                "nom_entite": h.nom_entite,
+                "created_at": h.created_at,
+            }
+            for h in recents
+        ]
+
         return {
             "domaines": db.query(Domaine).count(),
             "processes": db.query(Process).count(),
@@ -153,8 +261,17 @@ def get_stats():
             "masques": db.query(Masque).count(),
             "fonctionnalites": db.query(Fonctionnalite).count(),
             "services": db.query(Service).count(),
+            "procedures": db.query(ProcedureStockee).count(),
             "tables": db.query(TableInfo).count(),
-            "dcs": db.query(DC).count()
+            "attributs": db.query(Attribut).count(),
+            "dcs": db.query(DC).count(),
+            "archives": db.query(Archive).count(),
+            "utilisateurs": db.query(User).count(),
+            "evenements": db.query(Historique).count(),
+            "activite_14j": activite_14j,
+            "repartition_par_type": repartition_par_type,
+            "top_contributeurs": top_contributeurs,
+            "evenements_recents": evenements_recents,
         }
     finally:
         db.close()

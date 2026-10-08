@@ -12,3 +12,4 @@ from .attributs import router as attributs_router
 from .dcs import router as dcs_router
 from .archives import router as archives_router
 from .search import router as search_router
+from .historique import router as historique_router

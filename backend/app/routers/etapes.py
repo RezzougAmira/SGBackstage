@@ -5,7 +5,10 @@ from typing import List
 from ..database import get_db
 from ..models.etape import Etape
 from ..models.masque import EtapeMasque
+from ..models.user import User
 from ..utils import impact
+from ..utils.deps import get_current_user
+from ..utils.historique import enregistrer_historique, snapshot
 from ..schemas.etape import (
     EtapeCreate,
     EtapeResponse,
@@ -146,7 +149,12 @@ def get_etape_impact(etape_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=EtapeResponse, status_code=201)
-def create_etape(process_id: int, etape: EtapeCreate, db: Session = Depends(get_db)):
+def create_etape(
+    process_id: int,
+    etape: EtapeCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     existing = (
         db.query(Etape)
         .filter(Etape.process_id == process_id, Etape.nom == etape.nom)
@@ -185,18 +193,35 @@ def create_etape(process_id: int, etape: EtapeCreate, db: Session = Depends(get_
     db.add(db_etape)
     db.commit()
     db.refresh(db_etape)
+    enregistrer_historique(
+        db, utilisateur=user, action="creation", type_entite="etape",
+        entite_id=db_etape.id, nom_entite=db_etape.nom,
+        apres=snapshot(db_etape),
+    )
     return db_etape
 
 
 @router.put("/{etape_id}", response_model=EtapeResponse)
-def update_etape(process_id: int, etape_id: int, etape: EtapeCreate, db: Session = Depends(get_db)):
+def update_etape(
+    process_id: int,
+    etape_id: int,
+    etape: EtapeCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     db_etape = _charger_etape(db, process_id, etape_id)
 
+    avant = snapshot(db_etape)
     for key, value in etape.model_dump(exclude_unset=True).items():
         setattr(db_etape, key, value)
 
     db.commit()
     db.refresh(db_etape)
+    enregistrer_historique(
+        db, utilisateur=user, action="modification", type_entite="etape",
+        entite_id=db_etape.id, nom_entite=db_etape.nom,
+        avant=avant, apres=snapshot(db_etape),
+    )
     return db_etape
 
 
@@ -206,6 +231,7 @@ def delete_etape(
     etape_id: int,
     supprimer_masques: bool = False,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Supprime l'étape, et ses masques seulement si l'utilisateur le demande.
 
@@ -225,8 +251,10 @@ def delete_etape(
     # Les liens sont relevés avant la suppression : une fois l'étape supprimée,
     # ses liens vers les masques disparaissent avec elle.
     masques = [em.masque for em in db_etape.masques if em.masque]
+    masques_avant = {m.id: snapshot(m) for m in masques}
     supprimes: List[str] = []
     conserves: List[str] = []
+    supprimes_ids: List[int] = []
 
     db.delete(db_etape)
     db.flush()
@@ -250,9 +278,24 @@ def delete_etape(
                 else ""
             )
             db.delete(masque)
+            supprimes_ids.append(masque.id)
             supprimes.append(f"{masque.code} — {masque.nom}{detail}")
 
     db.commit()
+
+    # Journal : l'étape disparaît, et chacun des masques qu'elle emporte avec elle.
+    enregistrer_historique(
+        db, utilisateur=user, action="suppression", type_entite="etape",
+        entite_id=etape_id, nom_entite=db_etape.nom,
+        avant=snapshot(db_etape),
+    )
+    for mid in supprimes_ids:
+        avant = masques_avant[mid]
+        enregistrer_historique(
+            db, utilisateur=user, action="suppression", type_entite="masque",
+            entite_id=mid, nom_entite=f"{avant.get('code', '?')} — {avant.get('nom', '?')}",
+            avant=avant,
+        )
 
     return EtapeSuppressionResult(
         etape=SuppressionRapport(nom=db_etape.nom, supprimes=[db_etape.nom]),
@@ -263,7 +306,12 @@ def delete_etape(
 
 
 @router.put("/reorder")
-def reorder_etapes(process_id: int, reorder: EtapeReorder, db: Session = Depends(get_db)):
+def reorder_etapes(
+    process_id: int,
+    reorder: EtapeReorder,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     for index, etape_id in enumerate(reorder.etape_ids):
         etape = db.query(Etape).filter(
             Etape.id == etape_id,
@@ -272,6 +320,11 @@ def reorder_etapes(process_id: int, reorder: EtapeReorder, db: Session = Depends
         if etape:
             etape.ordre = index + 1
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="reorder", type_entite="etape",
+        entite_id=None, nom_entite=f"Ordre des étapes (processus {process_id})",
+        apres={"etape_ids": reorder.etape_ids},
+    )
     return {"message": "Étapes réordonnées"}
 
 
@@ -286,7 +339,12 @@ def get_etape_standalone(etape_id: int, db: Session = Depends(get_db)):
 @etapes_standalone_router.delete(
     "/etapes/{etape_id}/masques/{masque_id}", response_model=EtapeDetachMasqueResult
 )
-def detach_masque_de_etape(etape_id: int, masque_id: int, db: Session = Depends(get_db)):
+def detach_masque_de_etape(
+    etape_id: int,
+    masque_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """Retire un masque de cette étape sans toucher au masque lui-même.
 
     C'est le retrait « souple » : le masque reste dans la bibliothèque et dans
@@ -312,4 +370,10 @@ def detach_masque_de_etape(etape_id: int, masque_id: int, db: Session = Depends(
 
     db.delete(lien)
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="detachement", type_entite="masque",
+        entite_id=masque_id,
+        nom_entite=f"{lien.masque.code} — {lien.masque.nom}",
+        apres={"etape_id": etape_id, "masque_id": masque_id},
+    )
     return EtapeDetachMasqueResult(message="Masque retiré de l'étape")

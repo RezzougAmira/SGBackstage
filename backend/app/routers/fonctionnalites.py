@@ -7,6 +7,9 @@ from ..models.masque import Masque
 from ..models.service import Service
 from ..models.procedure import ServiceProcedure, ProcedureStockee
 from ..models.table import ProcedureTable
+from ..models.user import User
+from ..utils.deps import get_current_user
+from ..utils.historique import enregistrer_historique, snapshot
 from ..schemas.fonctionnalite import (
     FonctionnaliteCreate,
     FonctionnaliteUpdate,
@@ -122,7 +125,10 @@ def get_fonctionnalite(fonctionnalite_id: int, db: Session = Depends(get_db)):
 
 @router.post("/masque/{masque_id}", response_model=FonctionnaliteResponse, status_code=201)
 def create_fonctionnalite(
-    masque_id: int, payload: FonctionnaliteCreate, db: Session = Depends(get_db)
+    masque_id: int,
+    payload: FonctionnaliteCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     masque = db.query(Masque).filter(Masque.id == masque_id).first()
     if not masque:
@@ -154,6 +160,11 @@ def create_fonctionnalite(
     db.add(fonctionnalite)
     db.commit()
     db.refresh(fonctionnalite)
+    enregistrer_historique(
+        db, utilisateur=user, action="creation", type_entite="fonctionnalite",
+        entite_id=fonctionnalite.id, nom_entite=fonctionnalite.titre,
+        apres=snapshot(fonctionnalite),
+    )
     return _serialiser(_charger_avec(db, fonctionnalite.id) or fonctionnalite)
 
 
@@ -162,6 +173,7 @@ def update_fonctionnalite(
     fonctionnalite_id: int,
     payload: FonctionnaliteUpdate,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     fonctionnalite = db.query(Fonctionnalite).filter(
         Fonctionnalite.id == fonctionnalite_id
@@ -170,6 +182,7 @@ def update_fonctionnalite(
         raise HTTPException(status_code=404, detail="Fonctionnalité non trouvée")
 
     donnees = payload.model_dump(exclude_unset=True)
+    avant = snapshot(fonctionnalite)
 
     if "titre" in donnees:
         titre = (donnees["titre"] or "").strip()
@@ -186,11 +199,20 @@ def update_fonctionnalite(
 
     db.commit()
     db.refresh(fonctionnalite)
+    enregistrer_historique(
+        db, utilisateur=user, action="modification", type_entite="fonctionnalite",
+        entite_id=fonctionnalite.id, nom_entite=fonctionnalite.titre,
+        avant=avant, apres=snapshot(fonctionnalite),
+    )
     return _serialiser(_charger_avec(db, fonctionnalite.id) or fonctionnalite)
 
 
 @router.delete("/{fonctionnalite_id}")
-def delete_fonctionnalite(fonctionnalite_id: int, db: Session = Depends(get_db)):
+def delete_fonctionnalite(
+    fonctionnalite_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """Supprime la fonctionnalité et ses liaisons.
 
     Les services ne sont pas touchés : une fonctionnalité retirée ne doit pas
@@ -202,15 +224,26 @@ def delete_fonctionnalite(fonctionnalite_id: int, db: Session = Depends(get_db))
     if not fonctionnalite:
         raise HTTPException(status_code=404, detail="Fonctionnalité non trouvée")
 
+    avant = snapshot(fonctionnalite)
     db.delete(fonctionnalite)
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="suppression", type_entite="fonctionnalite",
+        entite_id=fonctionnalite_id, nom_entite=avant.get("titre", "?"),
+        avant=avant,
+    )
     return {"message": "Fonctionnalité supprimée"}
 
 
 @router.post(
     "/{fonctionnalite_id}/services/{service_id}", response_model=FonctionnaliteResponse
 )
-def add_service(fonctionnalite_id: int, service_id: int, db: Session = Depends(get_db)):
+def add_service(
+    fonctionnalite_id: int,
+    service_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """Rattache un service existant à la fonctionnalité.
 
     On ne crée pas de service à la volée ici : le service est une entité
@@ -242,13 +275,23 @@ def add_service(fonctionnalite_id: int, service_id: int, db: Session = Depends(g
 
     db.add(FonctionnaliteService(fonctionnalite_id=fonctionnalite_id, service_id=service_id))
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="rattachement", type_entite="service",
+        entite_id=service_id, nom_entite=service.nom,
+        apres={"fonctionnalite_id": fonctionnalite_id, "service_id": service_id, "fonctionnalite_titre": fonctionnalite.titre},
+    )
     return _serialiser(_charger_avec(db, fonctionnalite_id))
 
 
 @router.delete(
     "/{fonctionnalite_id}/services/{service_id}", response_model=FonctionnaliteResponse
 )
-def remove_service(fonctionnalite_id: int, service_id: int, db: Session = Depends(get_db)):
+def remove_service(
+    fonctionnalite_id: int,
+    service_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
     """Détache le service de la fonctionnalité, sans supprimer le service."""
     liaison = (
         db.query(FonctionnaliteService)
@@ -263,6 +306,12 @@ def remove_service(fonctionnalite_id: int, service_id: int, db: Session = Depend
             status_code=404, detail="Ce service n'est pas rattaché à cette fonctionnalité"
         )
 
+    nom_service = liaison.service.nom if liaison.service else str(service_id)
     db.delete(liaison)
     db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="detachement", type_entite="service",
+        entite_id=service_id, nom_entite=nom_service,
+        apres={"fonctionnalite_id": fonctionnalite_id, "service_id": service_id},
+    )
     return _serialiser(_charger_avec(db, fonctionnalite_id))

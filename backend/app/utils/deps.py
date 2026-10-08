@@ -5,13 +5,20 @@ from ..database import get_db
 from ..models.user import User
 from .auth import TokenError, decode_access_token
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
+    # auto_error=False : on distingue « aucun token » (401) de « token refusé ».
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentification requise",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token = credentials.credentials
     try:
         payload = decode_access_token(token)
