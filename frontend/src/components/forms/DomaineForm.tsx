@@ -1,6 +1,12 @@
 import { useState } from "react";
 
 interface DomaineFormProps {
+  initialData?: { nom: string; description?: string };
+  submitLabel?: string;
+  /** Titre de la boîte de dialogue (ex : « Modifier le domaine »). */
+  title?: string;
+  /** Sous-titre sous le titre. */
+  subtitle?: string;
   onSubmit: (data: { nom: string; description?: string }) => Promise<void>;
   onCancel: () => void;
 }
@@ -14,9 +20,16 @@ const btnRedOutline =
 const btnTealOutline =
   "rounded-full border border-[#26A69A] bg-white px-5 py-2 text-xs font-semibold text-[#26A69A] hover:bg-teal-50 dark:border-teal-400/60 dark:bg-transparent dark:text-teal-300 dark:hover:bg-teal-500/10";
 
-export function DomaineForm({ onSubmit, onCancel }: DomaineFormProps) {
-  const [nom, setNom] = useState("");
-  const [description, setDescription] = useState("");
+export function DomaineForm({
+  initialData,
+  submitLabel = "Créer le domaine",
+  title = "Ajouter un domaine",
+  subtitle = "Créer un nouveau domaine métier dans la documentation du SGB",
+  onSubmit,
+  onCancel,
+}: DomaineFormProps) {
+  const [nom, setNom] = useState(initialData?.nom ?? "");
+  const [description, setDescription] = useState(initialData?.description ?? "");
   const [nomError, setNomError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -52,10 +65,8 @@ export function DomaineForm({ onSubmit, onCancel }: DomaineFormProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-[#0A2540] dark:text-white">Ajouter un domaine</h2>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Créer un nouveau domaine métier dans la documentation du SGB
-          </p>
+          <h2 className="text-xl font-bold text-[#0A2540] dark:text-white">{title}</h2>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -93,7 +104,7 @@ export function DomaineForm({ onSubmit, onCancel }: DomaineFormProps) {
               Annuler
             </button>
             <button type="submit" disabled={loading} className={`${btnTealOutline} w-32`}>
-              {loading ? "Création..." : "Créer le domaine"}
+              {loading ? "Enregistrement..." : submitLabel}
             </button>
           </div>
         </form>

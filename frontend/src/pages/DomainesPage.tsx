@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Domaine } from "../types";
 import { domainesApi } from "../api/domaines";
 import { DomaineForm } from "../components/forms/DomaineForm";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { DomainesSkeleton } from "../components/ui/pageSkeletons";
 
 interface DomaineCard extends Domaine {
@@ -51,6 +52,8 @@ export function DomainesPage() {
   const [domaines, setDomaines] = useState<DomaineCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [domaineEnEdition, setDomaineEnEdition] = useState<DomaineCard | null>(null);
+  const [domaineToDelete, setDomaineToDelete] = useState<DomaineCard | null>(null);
   const [query, setQuery] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number>();
@@ -100,6 +103,22 @@ export function DomainesPage() {
     await fetchDomaines();
     setShowModal(false);
     showToast(`Domaine "${domaine.nom}" créé avec succès.`);
+  };
+
+  const handleEdit = async (data: { nom: string; description?: string }) => {
+    if (!domaineEnEdition) return;
+    await domainesApi.update(domaineEnEdition.id, data);
+    await fetchDomaines();
+    setDomaineEnEdition(null);
+    showToast(`Domaine "${data.nom}" modifié avec succès.`);
+  };
+
+  const handleDelete = async () => {
+    if (!domaineToDelete) return;
+    await domainesApi.delete(domaineToDelete.id);
+    setDomaineToDelete(null);
+    await fetchDomaines();
+    showToast(`Domaine "${domaineToDelete.nom}" supprimé.`);
   };
 
   if (loading) {
@@ -159,6 +178,28 @@ export function DomainesPage() {
                   {d.description}
                 </p>
               </div>
+              <div className="ml-auto flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  title="Modifier le domaine"
+                  onClick={() => setDomaineEnEdition(d)}
+                  className="rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e0f2f1] hover:text-[#26A69A] dark:text-white/50 dark:hover:bg-teal-500/10"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M17 3a2.85 2.83 0 114.01 4L8 20l-4 1 1-4L17 3z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  title="Supprimer le domaine"
+                  onClick={() => setDomaineToDelete(d)}
+                  className="rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3 text-[13px]">
@@ -189,6 +230,48 @@ export function DomainesPage() {
           onCancel={() => setShowModal(false)}
         />
       )}
+
+      {domaineEnEdition && (
+        <DomaineForm
+          key={domaineEnEdition.id}
+          initialData={{
+            nom: domaineEnEdition.nom,
+            description: domaineEnEdition.description ?? "",
+          }}
+          submitLabel="Enregistrer"
+          title="Modifier le domaine"
+          subtitle="Mise à jour des informations du domaine"
+          onSubmit={handleEdit}
+          onCancel={() => setDomaineEnEdition(null)}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={domaineToDelete !== null}
+        title="Supprimer le domaine"
+        message={
+          <>
+            <p>
+              Êtes-vous sûr de vouloir supprimer le domaine{" "}
+              <span className="font-semibold text-[#0A2540] dark:text-white">
+                {domaineToDelete?.nom}
+              </span>{" "}
+              ?
+            </p>
+            {domaineToDelete && (domaineToDelete.processus > 0 || domaineToDelete.etapes > 0) && (
+              <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                {domaineToDelete.processus} process
+                {domaineToDelete.processus > 1 ? " le" : ""}
+                {domaineToDelete.etapes > 0 && `${domaineToDelete.processus > 0 ? " et " : ""}${domaineToDelete.etapes} étape${domaineToDelete.etapes > 1 ? "s" : ""} en dépendent`}{" "}
+                et seront supprimés avec lui. La suppression sera refusée si une
+                étape est citée par une demande de changement.
+              </p>
+            )}
+          </>
+        }
+        onConfirm={handleDelete}
+        onCancel={() => setDomaineToDelete(null)}
+      />
 
       {toast && (
         <div className="fixed bottom-6 right-6 z-[80] flex items-center gap-2 rounded-xl border border-[#26A69A]/50 bg-white px-5 py-3 text-sm font-medium text-[#0a7d74] shadow-2xl dark:bg-[#131313] dark:text-teal-300">
