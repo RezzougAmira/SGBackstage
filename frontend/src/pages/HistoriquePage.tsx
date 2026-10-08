@@ -124,54 +124,46 @@ export function HistoriquePage() {
       </div>
 
       {loading ? (
-        <SkeletonTable rows={12} columns={4} />
+        <SkeletonTable rows={12} columns={5} />
       ) : evenements.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#e6e8f5] py-16 text-center">
           <p className="text-sm text-gray-500">Aucun événement ne correspond aux filtres.</p>
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm dark:bg-[#131313]">
-          <div className="divide-y">
-            {evenements.map((evt) => (
-              <div key={evt.id}>
-                <button
-                  type="button"
-                  onClick={() => setDeplie(deplie === evt.id ? null : evt.id)}
-                  className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-gray-50"
-                >
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${ACTION_COLORS[evt.action] ?? 'bg-gray-100 text-gray-700'}`}
-                  >
-                    {HISTORIQUE_ACTIONS[evt.action] ?? evt.action}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
-                    {evt.nom_entite ?? '—'}
-                  </span>
-                  <span className="hidden shrink-0 text-xs text-gray-500 md:inline">
-                    {HISTORIQUE_ENTITES[evt.type_entite] ?? evt.type_entite}
-                  </span>
-                  <span className="shrink-0 text-xs text-gray-400">
-                    {evt.utilisateur?.name ?? 'Inconnu'}
-                  </span>
-                  <span className="shrink-0 text-xs text-gray-400">
-                    {formatDate(evt.created_at)}
-                  </span>
-                  <svg
-                    className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${deplie === evt.id ? 'rotate-180' : ''}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {deplie === evt.id && (
-                  <DetailEvent evt={evt} />
-                )}
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="w-10 px-4 py-3" />
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Action
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Élément
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Utilisateur
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Date
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {evenements.map((evt) => (
+                  <EventRows
+                    key={evt.id}
+                    evt={evt}
+                    deplie={deplie === evt.id}
+                    onToggle={() => setDeplie(deplie === evt.id ? null : evt.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
 
           {/* Pagination */}
@@ -202,6 +194,64 @@ export function HistoriquePage() {
   );
 }
 
+/** Une ligne + la ligne de détail dépliée (diff avant/après) sous la table. */
+function EventRows({
+  evt,
+  deplie,
+  onToggle,
+}: {
+  evt: HistoriqueEvent;
+  deplie: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <>
+      <tr
+        className={`cursor-pointer transition hover:bg-gray-50 ${deplie ? 'bg-gray-50' : ''}`}
+        onClick={onToggle}
+      >
+        <td className="px-4 py-3.5">
+          <svg
+            className={`h-4 w-4 text-gray-400 transition-transform ${deplie ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </td>
+        <td className="px-4 py-3.5">
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${ACTION_COLORS[evt.action] ?? 'bg-gray-100 text-gray-700'}`}
+          >
+            {HISTORIQUE_ACTIONS[evt.action] ?? evt.action}
+          </span>
+        </td>
+        <td className="px-4 py-3.5 font-medium text-gray-800">
+          {evt.nom_entite ?? '—'}
+        </td>
+        <td className="px-4 py-3.5 text-sm text-gray-500">
+          {HISTORIQUE_ENTITES[evt.type_entite] ?? evt.type_entite}
+        </td>
+        <td className="px-4 py-3.5 text-sm text-gray-600">
+          {evt.utilisateur?.name ?? 'Inconnu'}
+        </td>
+        <td className="whitespace-nowrap px-4 py-3.5 text-sm text-gray-500">
+          {formatDate(evt.created_at)}
+        </td>
+      </tr>
+      {deplie && (
+        <tr className="bg-gray-50/70">
+          <td colSpan={6} className="px-6 pb-5 pt-1">
+            <DetailEvent evt={evt} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 /** Contenu déplié : le détail avant/après issu des captures JSON. */
 function DetailEvent({ evt }: { evt: HistoriqueEvent }) {
   const avant = evt.avant ?? {};
@@ -219,7 +269,7 @@ function DetailEvent({ evt }: { evt: HistoriqueEvent }) {
   const modifs = evt.action === 'modification' ? champs : [];
 
   return (
-    <div className="border-t border-dashed border-[#e6e8f5] bg-gray-50/60 px-5 py-4">
+    <div className="rounded-xl border border-[#e6e8f5] bg-white p-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {evt.avant && (
           <div>
