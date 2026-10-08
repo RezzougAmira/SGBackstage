@@ -358,7 +358,6 @@ export function EtapeDetailPage() {
             description: masqueEnEdition.description ?? "",
             image_key: masqueEnEdition.image_key,
           }}
-          hideService
           submitLabel="Enregistrer"
           title="Modifier le masque"
           subtitle="Mise à jour des informations du masque"

@@ -7,13 +7,6 @@ export interface MasqueFormData {
   nom: string;
   description?: string;
   image_key: string | null;
-  service?: {
-    nom: string;
-    methode_http?: string;
-    url?: string;
-    input_desc?: string;
-    output_desc?: string;
-  };
 }
 
 interface MasqueFormProps {
@@ -28,15 +21,12 @@ interface MasqueFormProps {
   title?: string;
   /** Sous-titre sous le titre. */
   subtitle?: string;
-  /** En édition, on ne crée pas de service : la section est masquée. */
-  hideService?: boolean;
   onSubmit: (data: MasqueFormData) => Promise<void>;
   onCancel: () => void;
 }
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const ACCEPTED = ["image/png", "image/jpeg", "image/gif", "image/webp"];
-const METHODES = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 const CODE_LENGTH = 6;
 
 const labelClass = "mb-1 block text-sm font-normal text-gray-700 dark:text-gray-300";
@@ -53,8 +43,7 @@ export function MasqueForm({
   initialData,
   submitLabel = "Enregistrer",
   title = "Ajouter un masque",
-  subtitle = "Écran de l'étape, capture associée et service appelé",
-  hideService = false,
+  subtitle = "Écran de l'étape et capture associée",
   onSubmit,
   onCancel,
 }: MasqueFormProps) {
@@ -62,18 +51,11 @@ export function MasqueForm({
   const [nom, setNom] = useState(initialData?.nom ?? "");
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [imageKey, setImageKey] = useState<string | null>(initialData?.image_key ?? null);
-  const [withService, setWithService] = useState(false);
-  const [serviceNom, setServiceNom] = useState("");
-  const [methode, setMethode] = useState("POST");
-  const [url, setUrl] = useState("");
-  const [inputDesc, setInputDesc] = useState("");
-  const [outputDesc, setOutputDesc] = useState("");
   const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [codeError, setCodeError] = useState("");
   const [nomError, setNomError] = useState("");
-  const [serviceError, setServiceError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -163,10 +145,6 @@ export function MasqueForm({
       setNomError("Veuillez renseigner le nom du masque.");
       return;
     }
-    if (withService && !serviceNom.trim()) {
-      setServiceError("Indiquez le nom du service appelé, ou décochez la case.");
-      return;
-    }
 
     setLoading(true);
     setSubmitError("");
@@ -176,15 +154,6 @@ export function MasqueForm({
         nom: nomTrim,
         description: description.trim() || undefined,
         image_key: imageKey,
-        service: withService
-          ? {
-              nom: serviceNom.trim(),
-              methode_http: methode,
-              url: url.trim() || undefined,
-              input_desc: inputDesc.trim() || undefined,
-              output_desc: outputDesc.trim() || undefined,
-            }
-          : undefined,
       });
       // Les images sont désormais rattachées au masque : plus rien à nettoyer.
       pendingUploads.current = [];
@@ -314,88 +283,6 @@ export function MasqueForm({
               {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
             </div>
           </div>
-
-          {!hideService && (
-            <>
-              <p className={`${sectionClass} mt-7`}>Service appelé par le masque</p>
-
-              <label className="mb-4 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={withService}
-                  onChange={(e) => {
-                    setWithService(e.target.checked);
-                    if (serviceError) setServiceError("");
-                  }}
-                  className="h-4 w-4 rounded border-gray-300 text-[#004A86] focus:ring-[#004A86]"
-                />
-                Ce masque appelle un service
-              </label>
-
-              {withService && (
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className={labelClass}>Nom du service</label>
-                <input
-                  className={`${inputClass} ${serviceError ? "border-red-500 focus:border-red-500" : ""}`}
-                  value={serviceNom}
-                  onChange={(e) => setServiceNom(e.target.value)}
-                  placeholder="Ex : CreerFacture"
-                />
-                {serviceError && <p className="mt-1 text-xs text-red-500">{serviceError}</p>}
-              </div>
-
-              <div className="grid grid-cols-[110px_1fr] gap-3">
-                <div>
-                  <label className={labelClass}>Méthode</label>
-                  <select
-                    className={inputClass}
-                    value={methode}
-                    onChange={(e) => setMethode(e.target.value)}
-                  >
-                    {METHODES.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelClass}>URL</label>
-                  <input
-                    className={inputClass}
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="/api/factures"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={labelClass}>Données en entrée</label>
-                <textarea
-                  className={inputClass}
-                  rows={2}
-                  value={inputDesc}
-                  onChange={(e) => setInputDesc(e.target.value)}
-                  placeholder="Paramètres envoyés au service"
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Données en sortie</label>
-                <textarea
-                  className={inputClass}
-                  rows={2}
-                  value={outputDesc}
-                  onChange={(e) => setOutputDesc(e.target.value)}
-                  placeholder="Ce que le service renvoie"
-                />
-              </div>
-            </div>
-          )}
-            </>
-          )}
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 dark:border-white/10">
             {submitError && <p className="w-full text-xs text-red-500">{submitError}</p>}
