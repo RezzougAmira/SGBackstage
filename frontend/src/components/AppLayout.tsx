@@ -141,23 +141,11 @@ function SidebarLink({ item, onNavigate }: { item: NavItem; onNavigate: () => vo
 export function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [theme, setThemeState] = useState<"light" | "dark">(
-    () => (localStorage.getItem("theme") as "light" | "dark") || "light"
-  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const avatarSrc = useProtectedImage(user?.avatar_key);
 
-  const setTheme = (t: "light" | "dark") => {
-    setThemeState(t);
-    localStorage.setItem("theme", t);
-  };
-
   return (
-    <div
-      className={`flex h-screen overflow-hidden bg-[#f6f8fa] font-poppins ${
-        theme === "dark" ? "dark" : ""
-      }`}
-    >
+    <div className="flex h-screen overflow-hidden bg-[#f6f8fa] font-poppins">
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
@@ -189,28 +177,6 @@ export function AppLayout() {
 
           <SidebarLink item={PROFILE_ITEM} onNavigate={() => setSidebarOpen(false)} />
         </nav>
-
-        {/* Theme toggle */}
-        <div className="mt-10 flex w-full items-center gap-2 rounded-lg bg-[#f6f8fa] p-[2px]">
-          <button
-            type="button"
-            onClick={() => setTheme("dark")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-1.5 text-xs font-medium ${
-              theme === "dark" ? "bg-[#004a86] text-white" : "bg-white text-[#060d38]"
-            }`}
-          >
-            Dark
-          </button>
-          <button
-            type="button"
-            onClick={() => setTheme("light")}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold ${
-              theme === "light" ? "bg-white text-[#060d38]" : "text-[#060d38]/50 dark:text-gray-400"
-            }`}
-          >
-            Light
-          </button>
-        </div>
 
         {/* Profile — clic sur la photo ou le nom pour ouvrir le panneau */}
         <div className="mb-7 mt-3 flex items-center gap-3 py-3">
@@ -253,7 +219,7 @@ export function AppLayout() {
       {/* Main column */}
       <div className="flex flex-1 flex-col">
         {/* Topbar */}
-        <header className="flex h-16 items-center gap-3 bg-white px-4 shadow-[0px_4px_16px_0px_rgba(0,0,0,0.08)] dark:bg-[#0d5aa8] sm:px-6 lg:px-8">
+        <header className="flex h-16 items-center gap-3 bg-white px-4 shadow-[0px_4px_16px_0px_rgba(0,0,0,0.08)] sm:px-6 lg:px-8">
           {/* Mobile hamburger */}
           <button
             type="button"

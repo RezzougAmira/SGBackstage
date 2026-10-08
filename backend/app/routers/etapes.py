@@ -256,8 +256,19 @@ def delete_etape(
     conserves: List[str] = []
     supprimes_ids: List[int] = []
 
+    # L'ordre est une position dans le flux : la suppression ne doit pas
+    # laisser de trou, les étapes suivantes remontent d'un rang (1..N).
+    ordre_supprime = db_etape.ordre
+
     db.delete(db_etape)
     db.flush()
+
+    if ordre_supprime is not None:
+        (
+            db.query(Etape)
+            .filter(Etape.process_id == process_id, Etape.ordre > ordre_supprime)
+            .update({Etape.ordre: Etape.ordre - 1}, synchronize_session=False)
+        )
 
     if supprimer_masques:
         for masque in masques:
