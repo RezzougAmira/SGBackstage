@@ -17,6 +17,9 @@ class Masque(Base):
 
     etapes = relationship("EtapeMasque", back_populates="masque", cascade="all, delete-orphan")
     services = relationship("MasqueService", back_populates="masque", cascade="all, delete-orphan")
+    fonctionnalites = relationship(
+        "Fonctionnalite", back_populates="masque", cascade="all, delete-orphan"
+    )
 
 
 class EtapeMasque(Base):

@@ -185,6 +185,38 @@ export interface Procedure {
   updated_at: string;
 }
 
+export interface FonctionnaliteProcedure {
+  id: number;
+  nom: string;
+  description: string | null;
+  tables: TableRef[];
+}
+
+export interface FonctionnaliteService {
+  id: number;
+  nom: string;
+  methode_http: string | null;
+  url: string | null;
+  input_desc: string | null;
+  output_desc: string | null;
+  controleur: string | null;
+  modifie_bdd: boolean | null;
+  procedures: FonctionnaliteProcedure[];
+}
+
+/** Une fonctionnalité regroupe les services qui réalisent une même action
+ *  (le bouton « Rechercher », par exemple), au sein d'un masque. */
+export interface Fonctionnalite {
+  id: number;
+  titre: string;
+  description: string | null;
+  masque_id: number;
+  ordre: number;
+  services: FonctionnaliteService[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Table {
   id: number;
   nom: string;

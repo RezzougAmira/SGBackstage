@@ -4,9 +4,113 @@ from typing import List
 from ..database import get_db
 from ..models.service import Service, MasqueService
 from ..models.masque import Masque
+from ..models.procedure import ProcedureStockee, ServiceProcedure
 from ..schemas.service import ServiceCreate, ServiceResponse
+from ..schemas.procedure import ProcedureCreate, ProcedureResponse
+from ..utils import impact
 
 router = APIRouter(prefix="/api/services", tags=["services"])
+
+
+def _procedures_du_service(db: Session, service_id: int) -> List[ProcedureStockee]:
+    return [
+        liaison.procedure
+        for liaison in (
+            db.query(ServiceProcedure)
+            .filter(ServiceProcedure.service_id == service_id)
+            .all()
+        )
+        if liaison.procedure is not None
+    ]
+
+
+@router.get("/{service_id}/procedures", response_model=List[ProcedureResponse])
+def list_procedures_du_service(service_id: int, db: Session = Depends(get_db)):
+    service = db.query(Service).filter(Service.id == service_id).first()
+    if not service:
+        raise HTTPException(status_code=404, detail="Service non trouvé")
+    return _procedures_du_service(db, service_id)
+
+
+@router.post(
+    "/{service_id}/procedures", response_model=ProcedureResponse, status_code=201
+)
+def creer_et_attacher_procedure(
+    service_id: int, payload: ProcedureCreate, db: Session = Depends(get_db)
+):
+    """Crée une procédure stockée et la rattache au service."""
+    service = db.query(Service).filter(Service.id == service_id).first()
+    if not service:
+        raise HTTPException(status_code=404, detail="Service non trouvé")
+
+    nom = (payload.nom or "").strip()
+    if not nom:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Le nom ne peut pas être vide",
+        )
+
+    procedure = ProcedureStockee(**{**payload.model_dump(), "nom": nom})
+    db.add(procedure)
+    db.flush()
+    db.add(ServiceProcedure(service_id=service_id, procedure_id=procedure.id))
+    db.commit()
+    db.refresh(procedure)
+    return procedure
+
+
+@router.post(
+    "/{service_id}/procedures/{procedure_id}", response_model=ProcedureResponse
+)
+def attacher_procedure(service_id: int, procedure_id: int, db: Session = Depends(get_db)):
+    """Rattache une procédure stockée existante au service."""
+    service = db.query(Service).filter(Service.id == service_id).first()
+    if not service:
+        raise HTTPException(status_code=404, detail="Service non trouvé")
+
+    procedure = (
+        db.query(ProcedureStockee).filter(ProcedureStockee.id == procedure_id).first()
+    )
+    if not procedure:
+        raise HTTPException(status_code=404, detail="Procédure non trouvée")
+
+    deja = (
+        db.query(ServiceProcedure)
+        .filter(
+            ServiceProcedure.service_id == service_id,
+            ServiceProcedure.procedure_id == procedure_id,
+        )
+        .first()
+    )
+    if deja:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cette procédure est déjà rattachée à ce service",
+        )
+
+    db.add(ServiceProcedure(service_id=service_id, procedure_id=procedure_id))
+    db.commit()
+    return procedure
+
+
+@router.delete("/{service_id}/procedures/{procedure_id}", status_code=204)
+def detacher_procedure(service_id: int, procedure_id: int, db: Session = Depends(get_db)):
+    """Détache la procédure du service, sans la supprimer."""
+    liaison = (
+        db.query(ServiceProcedure)
+        .filter(
+            ServiceProcedure.service_id == service_id,
+            ServiceProcedure.procedure_id == procedure_id,
+        )
+        .first()
+    )
+    if not liaison:
+        raise HTTPException(
+            status_code=404, detail="Cette procédure n'est pas rattachée à ce service"
+        )
+
+    db.delete(liaison)
+    db.commit()
 
 
 @router.get("/", response_model=List[ServiceResponse])
@@ -70,9 +174,18 @@ def assign_service_to_masque(service_id: int, masque_id: int, db: Session = Depe
 
 @router.delete("/{service_id}", status_code=204)
 def delete_service(service_id: int, db: Session = Depends(get_db)):
+    """Supprime le service de la base, avec tous ses liens.
+
+    Refusé si une demande de changement le cite : la cascade supprimerait
+    silencieusement l'historique de traçabilité.
+    """
     db_service = db.query(Service).filter(Service.id == service_id).first()
     if not db_service:
         raise HTTPException(status_code=404, detail="Service non trouvé")
+
+    impact.refuser_si_reference_dc(
+        impact.dcs_de_service(db, service_id), "ce service"
+    )
 
     db.delete(db_service)
     db.commit()

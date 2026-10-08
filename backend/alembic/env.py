@@ -1,5 +1,5 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import pool
 from alembic import context
 import os
 import sys
@@ -22,10 +22,31 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
+# sqlalchemy.url est vide dans alembic.ini : on reprend DATABASE_URL de
+# l'application (PostgreSQL Supabase) pour éviter une seconde configuration.
+if not config.get_main_option("sqlalchemy.url", None):
+    from app.config import get_settings
+
+    config.set_main_option("sqlalchemy.url", get_settings().DATABASE_URL)
+
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
+
+def _configurer_engine():
+    """Construit l'engine à partir de DATABASE_URL.
+
+    On n'utilise pas engine_from_config() : sqlalchemy.url peut rester vide
+    dans alembic.ini, et `%` y serait interprété comme une interpolation de
+    ConfigParser (cassant les mots de passe contenant un pourcent).
+    """
+    from sqlalchemy import create_engine
+
+    from app.config import get_settings
+
+    return create_engine(get_settings().DATABASE_URL, poolclass=pool.NullPool)
 
 
 def run_migrations_offline() -> None:
@@ -57,11 +78,7 @@ def run_migrations_online() -> None:
     In this scenario we need to create an Engine
     and associate a connection with the context.
     """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = _configurer_engine()
 
     with connectable.connect() as connection:
         context.configure(

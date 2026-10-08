@@ -1,8 +1,50 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { User } from "../types";
 import { authApi } from "../api/auth";
-import { uploadApi } from "../api/upload";
 import { useProtectedImage } from "../hooks/useProtectedImage";
+
+/**
+ * Champ du formulaire de création : libellé discret, valeur vide visible et
+ * placeholder explicite. On neutralise l'autofill du navigateur — sinon Chrome
+ * pré-remplit « admin@agb.com » et le champ paraît déjà renseigné.
+ */
+function ChampFormulaire({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  autoComplete = "off",
+  suffixe,
+}: {
+  label: string;
+  value: string;
+  onChange: (valeur: string) => void;
+  placeholder: string;
+  type?: string;
+  autoComplete?: string;
+  suffixe?: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
+        {label}
+      </span>
+      <div className="relative mt-1">
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          required
+          autoComplete={autoComplete}
+          className="w-full rounded-lg border border-[#e6e8f5] bg-white px-3 py-2.5 font-poppins text-sm text-[#0c1d31] placeholder:text-[#b6c0cc] focus:border-[#003049] focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-white/25"
+        />
+        {suffixe && <span className="absolute right-3 top-1/2 -translate-y-1/2">{suffixe}</span>}
+      </div>
+    </label>
+  );
+}
 
 function formatDate(valeur: string): string {
   return new Date(valeur).toLocaleDateString("fr-FR", {
@@ -65,16 +107,27 @@ export function ProfilePage() {
     email: string;
     role: string;
     blocked: number;
-    avatar_key: string | null;
   } | null>(null);
   const [enregistrementUser, setEnregistrementUser] = useState(false);
-  const [envoiPhotoUser, setEnvoiPhotoUser] = useState(false);
   const [erreurUser, setErreurUser] = useState<string | null>(null);
-  const inputPhotoUser = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({ email: "", password: "", name: "", role: "developer" });
+  const [creationEnCours, setCreationEnCours] = useState(false);
+  const [erreurCreation, setErreurCreation] = useState<string | null>(null);
+  const [motDePasseVisible, setMotDePasseVisible] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const photoAffichee = useProtectedImage(editionUser?.avatar_key ?? null);
+  const fermerFormulaire = () => {
+    setShowForm(false);
+    setFormData({ email: "", password: "", name: "", role: "developer" });
+    setErreurCreation(null);
+    setMotDePasseVisible(false);
+  };
+
+  // Aperçu de la photo dans la fenêtre d'édition : lecture seule, la photo
+  // reste la propriété de l'utilisateur concerné.
+  const photoAffichee = useProtectedImage(
+    editionUser ? selectedUser?.avatar_key : null,
+  );
 
   const fermerDetail = () => {
     setSelectedUser(null);
@@ -116,23 +169,6 @@ export function ProfilePage() {
     await fetchUsers();
   };
 
-  const envoyerPhotoUser = async (fichier: File) => {
-    if (!editionUser) return;
-    setErreurUser(null);
-    setEnvoiPhotoUser(true);
-    const ancienne = editionUser.avatar_key;
-    try {
-      const { key } = await uploadApi.upload(fichier);
-      setEditionUser({ ...editionUser, avatar_key: key });
-      // L'ancienne image n'est plus référencée : on libère le stockage.
-      if (ancienne) uploadApi.remove(ancienne).catch(() => {});
-    } catch (e: any) {
-      setErreurUser(e?.message ?? "Impossible d'envoyer la photo");
-    } finally {
-      setEnvoiPhotoUser(false);
-    }
-  };
-
   const enregistrerUtilisateur = async () => {
     if (!selectedUser || !editionUser) return;
     setEnregistrementUser(true);
@@ -152,10 +188,17 @@ export function ProfilePage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    await authApi.createUser(formData);
-    setShowForm(false);
-    setFormData({ email: "", password: "", name: "", role: "developer" });
-    await fetchUsers();
+    setCreationEnCours(true);
+    setErreurCreation(null);
+    try {
+      await authApi.createUser(formData);
+      fermerFormulaire();
+      await fetchUsers();
+    } catch (err: any) {
+      setErreurCreation(err?.message ?? "Impossible de créer le compte");
+    } finally {
+      setCreationEnCours(false);
+    }
   };
 
   if (loading) {
@@ -190,7 +233,10 @@ export function ProfilePage() {
 
         <button
           type="button"
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setShowForm(true);
+            setErreurCreation(null);
+          }}
           className="flex h-[46px] shrink-0 items-center gap-2 rounded-xl bg-[#003049] px-5 font-poppins text-sm font-semibold text-white transition hover:bg-[#00263a]"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -254,66 +300,120 @@ export function ProfilePage() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#131313]">
-            <h3 className="mb-4 font-poppins text-lg font-bold text-[#0c1d31] dark:text-white">
-              Ajouter un utilisateur
-            </h3>
-            <form onSubmit={handleCreate} className="space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={fermerFormulaire}
+        >
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#131313]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-[#e6e8f5] px-6 py-5 dark:border-white/10">
               <div>
-                <label className="mb-1 block font-poppins text-sm font-medium text-[#0c1d31] dark:text-white">Nom *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  className="w-full rounded-lg border border-[#e6e8f5] px-4 py-2 font-poppins text-sm outline-none focus:border-[#003049] dark:border-white/10 dark:bg-white/5 dark:text-white"
-                />
+                <h3 className="font-poppins text-lg font-bold text-[#0c1d31] dark:text-white">
+                  Ajouter un utilisateur
+                </h3>
+                <p className="mt-1 font-poppins text-sm text-[#525f6d] dark:text-white/60">
+                  Renseignez son identité, puis attribuez-lui un accès.
+                </p>
               </div>
-              <div>
-                <label className="mb-1 block font-poppins text-sm font-medium text-[#0c1d31] dark:text-white">Email *</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                  className="w-full rounded-lg border border-[#e6e8f5] px-4 py-2 font-poppins text-sm outline-none focus:border-[#003049] dark:border-white/10 dark:bg-white/5 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block font-poppins text-sm font-medium text-[#0c1d31] dark:text-white">Mot de passe *</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  className="w-full rounded-lg border border-[#e6e8f5] px-4 py-2 font-poppins text-sm outline-none focus:border-[#003049] dark:border-white/10 dark:bg-white/5 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block font-poppins text-sm font-medium text-[#0c1d31] dark:text-white">Rôle</label>
+              <button
+                type="button"
+                onClick={fermerFormulaire}
+                aria-label="Fermer"
+                className="shrink-0 rounded-full p-1 text-[#525f6d] transition hover:bg-[#e6e8f5] dark:text-white/60 dark:hover:bg-white/10"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleCreate} className="space-y-4 px-6 py-5">
+              <ChampFormulaire
+                label="Nom"
+                value={formData.name}
+                onChange={(v) => setFormData({ ...formData, name: v })}
+                placeholder="Ex. Amira Rezzoug"
+                autoComplete="off"
+              />
+
+              <ChampFormulaire
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(v) => setFormData({ ...formData, email: v })}
+                placeholder="prenom.nom@agb.com"
+                autoComplete="off"
+              />
+
+              <ChampFormulaire
+                label="Mot de passe"
+                type={motDePasseVisible ? "text" : "password"}
+                value={formData.password}
+                onChange={(v) => setFormData({ ...formData, password: v })}
+                placeholder="Au moins 6 caractères"
+                autoComplete="new-password"
+                suffixe={
+                  <button
+                    type="button"
+                    onClick={() => setMotDePasseVisible((v) => !v)}
+                    aria-label={motDePasseVisible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                    className="text-[#8ea0b3] transition hover:text-[#003049] dark:hover:text-white"
+                  >
+                    {motDePasseVisible ? (
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243" />
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    )}
+                  </button>
+                }
+              />
+
+              <label className="block">
+                <span className="font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
+                  Rôle
+                </span>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full rounded-lg border border-[#e6e8f5] px-4 py-2 font-poppins text-sm outline-none focus:border-[#003049] dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  className="mt-1 w-full rounded-lg border border-[#e6e8f5] bg-white px-3 py-2.5 font-poppins text-sm capitalize text-[#0c1d31] focus:border-[#003049] focus:outline-none dark:border-white/10 dark:bg-white/5 dark:text-white"
                 >
                   <option value="developer">Developer</option>
                   <option value="admin">Admin</option>
                 </select>
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
+                <p className="mt-1.5 font-poppins text-xs text-[#8ea0b3] dark:text-white/40">
+                  {formData.role === "admin"
+                    ? "Accès complet, y compris la gestion des utilisateurs."
+                    : "Accès aux domaines, processus, étapes et masques."}
+                </p>
+              </label>
+
+              {erreurCreation && (
+                <p className="rounded-lg bg-red-50 px-3 py-2 font-poppins text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+                  {erreurCreation}
+                </p>
+              )}
+
+              <div className="flex justify-end gap-3 pt-1">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
-                  className="rounded-lg px-4 py-2 font-poppins text-sm font-medium text-[#525f6d] transition hover:bg-[#e6e8f5] dark:text-white/60 dark:hover:bg-white/10"
+                  onClick={fermerFormulaire}
+                  className="rounded-lg border border-[#e6e8f5] px-5 py-2 font-poppins text-sm font-semibold text-[#525f6d] transition hover:bg-[#f6f8fa] dark:border-white/10 dark:text-white/60 dark:hover:bg-white/5"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-[#003049] px-4 py-2 font-poppins text-sm font-semibold text-white transition hover:bg-[#00263a]"
+                  disabled={creationEnCours}
+                  className="rounded-lg bg-[#003049] px-5 py-2 font-poppins text-sm font-semibold text-white transition hover:bg-[#00263a] disabled:opacity-50"
                 >
-                  Créer
+                  {creationEnCours ? "Création..." : "Créer le compte"}
                 </button>
               </div>
             </form>
@@ -362,60 +462,21 @@ export function ProfilePage() {
 
             {editionUser ? (
               <div className="space-y-4 px-6 py-5">
-                {/* Photo de profil : un clic ouvre le sélecteur, comme sur
-                    Mon profil. L'upload est immédiat, il ne reste qu'à
-                    valider avec « Enregistrer ». */}
-                <div className="flex flex-col items-center gap-2">
-                  <input
-                    ref={inputPhotoUser}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void envoyerPhotoUser(f);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    disabled={envoiPhotoUser}
-                    onClick={() => inputPhotoUser.current?.click()}
-                    title="Changer la photo"
-                    aria-label="Changer la photo"
-                    className="group relative block h-24 w-24 overflow-hidden rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#004a86] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#131313] disabled:cursor-wait"
-                  >
-                    {photoAffichee ? (
-                      <img alt="" className="h-24 w-24 rounded-full object-cover" src={photoAffichee} />
-                    ) : (
-                      <span className="flex h-24 w-24 items-center justify-center rounded-full bg-[#e6e8f5] font-poppins text-3xl font-bold text-[#004a86] dark:bg-white/10">
-                        {editionUser.name.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                    <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                      <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                      </svg>
+                {/* La photo n'est pas modifiable ici : chaque utilisateur gère
+                    la sienne depuis /profil. L'admin voit l'aperçu mais ne le
+                    change pas, pour qu'une photo reste toujours le choix de son
+                    propriétaire. */}
+                <div className="flex items-center gap-3 rounded-lg bg-[#f6f8fa] px-3 py-2.5 dark:bg-white/5">
+                  {photoAffichee ? (
+                    <img alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" src={photoAffichee} />
+                  ) : (
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e6e8f5] font-poppins text-base font-bold text-[#004a86] dark:bg-white/10">
+                      {editionUser.name.charAt(0).toUpperCase()}
                     </span>
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <span className="font-poppins text-xs text-[#8ea0b3] dark:text-white/40">
-                      {envoiPhotoUser
-                        ? "Envoi en cours..."
-                        : editionUser.avatar_key
-                          ? "Cliquez sur la photo pour la remplacer"
-                          : "Cliquez pour ajouter une photo"}
-                    </span>
-                    {editionUser.avatar_key && !envoiPhotoUser && (
-                      <button
-                        type="button"
-                        onClick={() => setEditionUser({ ...editionUser, avatar_key: null })}
-                        className="rounded font-poppins text-xs font-semibold text-red-600 underline-offset-2 hover:underline dark:text-red-400"
-                      >
-                        Retirer
-                      </button>
-                    )}
-                  </div>
+                  )}
+                  <p className="font-poppins text-xs text-[#8ea0b3] dark:text-white/40">
+                    La photo se modifie uniquement par l&apos;intéressé, depuis sa page Mon profil.
+                  </p>
                 </div>
 
                 <label className="block">
@@ -468,7 +529,7 @@ export function ProfilePage() {
                 </div>
               </div>
             ) : (
-              <dl className="grid grid-cols-2 gap-px bg-[#e6e8f5] dark:bg-white/10">
+              <dl className="divide-y divide-[#e6e8f5] dark:divide-white/10">
                 <InfoCell label="Rôle" value={selectedUser.role} />
                 <InfoCell
                   label="Statut"
@@ -492,9 +553,8 @@ export function ProfilePage() {
                       name: selectedUser.name,
                       email: selectedUser.email,
                       role: selectedUser.role,
-                      blocked: selectedUser.blocked ? 1 : 0,
-                      avatar_key: selectedUser.avatar_key ?? null,
-                    });
+                        blocked: selectedUser.blocked ? 1 : 0,
+                      });
                     setErreurUser(null);
                   }}
                   className="ml-auto flex items-center gap-2 rounded-lg border border-[#e6e8f5] px-5 py-2 font-poppins text-sm font-semibold text-[#003049] transition hover:bg-[#e6e8f5] dark:border-white/10 dark:text-white dark:hover:bg-white/10"
@@ -517,7 +577,7 @@ export function ProfilePage() {
                   <button
                     type="button"
                     onClick={enregistrerUtilisateur}
-                    disabled={enregistrementUser || envoiPhotoUser}
+                    disabled={enregistrementUser}
                     className="rounded-lg bg-[#003049] px-5 py-2 font-poppins text-sm font-semibold text-white transition hover:bg-[#00263a] disabled:opacity-50"
                   >
                     {enregistrementUser ? "Enregistrement..." : "Enregistrer"}

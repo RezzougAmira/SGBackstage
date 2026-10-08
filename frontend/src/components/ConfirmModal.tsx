@@ -20,7 +20,7 @@ export interface ConfirmModalRadio<T extends string> {
   onChange: (value: T) => void;
 }
 
-interface ConfirmModalProps<T extends string = string> {
+interface ConfirmModalProps<T extends string = string, U extends string = string> {
   isOpen: boolean;
   title: string;
   message: React.ReactNode;
@@ -29,13 +29,15 @@ interface ConfirmModalProps<T extends string = string> {
   loadingLabel?: string;
   /** Portée de la suppression, quand l'action a plusieurs portées possibles. */
   radio?: ConfirmModalRadio<T>;
+  /** Second choix, p. ex. le sort des services associés au masque. */
+  radio2?: ConfirmModalRadio<U>;
   /** Option de suppression étendue, à cocher explicitement. */
   checkbox?: ConfirmModalCheckbox;
   onConfirm: () => Promise<void> | void;
   onCancel: () => void;
 }
 
-export function ConfirmModal<T extends string = string>({
+export function ConfirmModal<T extends string = string, U extends string = string>({
   isOpen,
   title,
   message,
@@ -43,10 +45,11 @@ export function ConfirmModal<T extends string = string>({
   cancelLabel = "Annuler",
   loadingLabel = "Suppression...",
   radio,
+  radio2,
   checkbox,
   onConfirm,
   onCancel,
-}: ConfirmModalProps<T>) {
+}: ConfirmModalProps<T, U>) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -188,12 +191,47 @@ export function ConfirmModal<T extends string = string>({
           </label>
         )}
 
+        {radio2 && (
+          <fieldset className="mt-3 flex flex-col gap-2">
+            {radio2.label && (
+              <legend className="mb-1 font-poppins text-xs font-semibold text-[#525f6d] dark:text-white/50">
+                {radio2.label}
+              </legend>
+            )}
+            {radio2.options.map((option) => (
+              <label
+                key={option.value}
+                className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#e6e8f5] bg-[#fbfbfe] p-3 transition hover:border-[#004a86]/50 dark:border-white/10 dark:bg-white/5"
+              >
+                <input
+                  type="radio"
+                  name={`confirm-scope2-${title}`}
+                  checked={radio2.value === option.value}
+                  onChange={() => radio2.onChange(option.value)}
+                  disabled={loading}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[#004a86]"
+                />
+                <span className="min-w-0">
+                  <span className="block font-poppins text-sm font-semibold text-[#0A2540] dark:text-white">
+                    {option.label}
+                  </span>
+                  {option.description && (
+                    <span className="mt-0.5 block font-poppins text-xs text-[#525f6d] dark:text-white/50">
+                      {option.description}
+                    </span>
+                  )}
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
             disabled={loading}
-            className="rounded-full border border-[#e6e8f5] bg-white px-5 py-2 font-poppins text-xs font-semibold text-[#525f6d] transition hover:bg-[#f5f6fa] disabled:opacity-50 dark:border-white/15 dark:bg-transparent dark:text-white/70 dark:hover:bg-white/5"
+            className="flex h-9 w-32 items-center justify-center whitespace-nowrap rounded-full border border-[#e6e8f5] bg-white px-5 py-2 font-poppins text-xs font-semibold text-[#525f6d] transition hover:bg-[#f5f6fa] disabled:opacity-50 dark:border-white/15 dark:bg-transparent dark:text-white/70 dark:hover:bg-white/5"
           >
             {cancelLabel}
           </button>
@@ -201,7 +239,7 @@ export function ConfirmModal<T extends string = string>({
             type="button"
             onClick={handleConfirm}
             disabled={loading}
-            className="rounded-full bg-[#EF5350] px-5 py-2 font-poppins text-xs font-semibold text-white transition hover:bg-[#d9433f] disabled:opacity-60"
+            className="flex h-9 w-32 items-center justify-center whitespace-nowrap rounded-full bg-[#EF5350] px-5 py-2 font-poppins text-xs font-semibold text-white transition hover:bg-[#d9433f] disabled:opacity-60"
           >
             {loading ? loadingLabel : confirmLabel}
           </button>

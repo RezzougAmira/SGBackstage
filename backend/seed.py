@@ -13,6 +13,7 @@ from app.models.process import Process
 from app.models.etape import Etape
 from app.models.masque import Masque, EtapeMasque
 from app.models.service import Service, MasqueService
+from app.models.fonctionnalite import Fonctionnalite, FonctionnaliteService
 from app.models.procedure import ProcedureStockee, ServiceProcedure
 from app.models.table import TableInfo, ProcedureTable
 from app.models.attribut import Attribut
@@ -240,6 +241,43 @@ def seed():
         db.commit()
 
         # ======================
+        # FONCTIONNALITÉS (par masque) + LEURS SERVICES
+        # ======================
+        fonctionnalites = [
+            Fonctionnalite(titre="Saisir un client", description="Enregistrer les informations d'un nouveau client", masque_id=masques[0].id, ordre=0),
+            Fonctionnalite(titre="Modifier un client", description="Corriger les informations d'un client existant", masque_id=masques[0].id, ordre=1),
+            Fonctionnalite(titre="Gérer les comptes", description="Créer et consulter les comptes d'un client", masque_id=masques[1].id, ordre=0),
+            Fonctionnalite(titre="Effectuer un transfert", description="Virer un montant entre deux comptes", masque_id=masques[2].id, ordre=0),
+            Fonctionnalite(titre="Demander un prêt", description="Soumettre une demande de crédit", masque_id=masques[3].id, ordre=0),
+            Fonctionnalite(titre="Émettre une carte", description="Commander et activer une carte bancaire", masque_id=masques[4].id, ordre=0),
+            Fonctionnalite(titre="Consulter un client", description="Afficher la fiche complète d'un client", masque_id=masques[5].id, ordre=0),
+            Fonctionnalite(titre="Valider une opération", description="Approuver ou refuser une opération en attente", masque_id=masques[6].id, ordre=0),
+        ]
+        db.add_all(fonctionnalites)
+        db.commit()
+
+        fonctionnalite_services = [
+            # CE2100 → Saisir/Modifier un client
+            FonctionnaliteService(fonctionnalite_id=fonctionnalites[0].id, service_id=services[0].id),
+            FonctionnaliteService(fonctionnalite_id=fonctionnalites[1].id, service_id=services[0].id),
+            FonctionnaliteService(fonctionnalite_id=fonctionnalites[1].id, service_id=services[3].id),
+            # CE2200 → Gérer les comptes
+            FonctionnaliteService(fonctionnalite_id=fonctionnalites[2].id, service_id=services[1].id),
+            # CE2300 → Transfert
+            FonctionnaliteService(fonctionnalite_id=fonctionnalites[3].id, service_id=services[2].id),
+            # CE2400 → Prêt
+            FonctionnaliteService(fonctionnalite_id=fonctionnalites[4].id, service_id=services[5].id),
+            # CE2500 → Carte
+            FonctionnaliteService(fonctionnalite_id=fonctionnalites[5].id, service_id=services[4].id),
+            # CE2600 → Consultation
+            FonctionnaliteService(fonctionnalite_id=fonctionnalites[6].id, service_id=services[0].id),
+            # CE2700 → Validation
+            FonctionnaliteService(fonctionnalite_id=fonctionnalites[7].id, service_id=services[3].id),
+        ]
+        db.add_all(fonctionnalite_services)
+        db.commit()
+
+        # ======================
         # LIAISONS SERVICE-PROCÉDURE
         # ======================
         service_procedures = [
@@ -362,6 +400,7 @@ def seed():
         print(f"  - {len(processes)} processus")
         print(f"  - {len(etapes)} étapes")
         print(f"  - {len(masques)} masques")
+        print(f"  - {len(fonctionnalites)} fonctionnalités")
         print(f"  - {len(services)} services")
         print(f"  - {len(procedures)} procédures")
         print(f"  - {len(tables)} tables")

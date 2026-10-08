@@ -1,5 +1,5 @@
 import { api } from './client';
-import { Service } from '../types';
+import { Procedure, Service } from '../types';
 
 export const servicesApi = {
   list: () => api.get<Service[]>('/api/services'),
@@ -30,4 +30,16 @@ export const servicesApi = {
 
   assignToMasque: (serviceId: number, masqueId: number) =>
     api.post<Service>(`/api/services/${serviceId}/assign-masque/${masqueId}`),
+
+  procedures: (serviceId: number) =>
+    api.get<Procedure[]>(`/api/services/${serviceId}/procedures`),
+
+  createProcedure: (serviceId: number, data: { nom: string; description?: string }) =>
+    api.post<Procedure>(`/api/services/${serviceId}/procedures`, data),
+
+  attachProcedure: (serviceId: number, procedureId: number) =>
+    api.post<Procedure>(`/api/services/${serviceId}/procedures/${procedureId}`),
+
+  detachProcedure: (serviceId: number, procedureId: number) =>
+    api.delete(`/api/services/${serviceId}/procedures/${procedureId}`),
 };

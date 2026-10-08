@@ -24,6 +24,8 @@ interface MasqueFormProps {
     image_key?: string | null;
   };
   submitLabel?: string;
+  /** En édition, on ne crée pas de service : la section est masquée. */
+  hideService?: boolean;
   onSubmit: (data: MasqueFormData) => Promise<void>;
   onCancel: () => void;
 }
@@ -46,6 +48,7 @@ const btnTealOutline =
 export function MasqueForm({
   initialData,
   submitLabel = "Enregistrer",
+  hideService = false,
   onSubmit,
   onCancel,
 }: MasqueFormProps) {
@@ -308,22 +311,24 @@ export function MasqueForm({
             </div>
           </div>
 
-          <p className={`${sectionClass} mt-7`}>Service appelé par le masque</p>
+          {!hideService && (
+            <>
+              <p className={`${sectionClass} mt-7`}>Service appelé par le masque</p>
 
-          <label className="mb-4 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-            <input
-              type="checkbox"
-              checked={withService}
-              onChange={(e) => {
-                setWithService(e.target.checked);
-                if (serviceError) setServiceError("");
-              }}
-              className="h-4 w-4 rounded border-gray-300 text-[#004A86] focus:ring-[#004A86]"
-            />
-            Ce masque appelle un service
-          </label>
+              <label className="mb-4 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={withService}
+                  onChange={(e) => {
+                    setWithService(e.target.checked);
+                    if (serviceError) setServiceError("");
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-[#004A86] focus:ring-[#004A86]"
+                />
+                Ce masque appelle un service
+              </label>
 
-          {withService && (
+              {withService && (
             <div className="flex flex-col gap-4">
               <div>
                 <label className={labelClass}>Nom du service</label>
@@ -384,6 +389,8 @@ export function MasqueForm({
                 />
               </div>
             </div>
+          )}
+            </>
           )}
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 dark:border-white/10">

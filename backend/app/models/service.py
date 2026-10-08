@@ -20,6 +20,9 @@ class Service(Base):
 
     masques = relationship("MasqueService", back_populates="service", cascade="all, delete-orphan")
     procedures = relationship("ServiceProcedure", back_populates="service", cascade="all, delete-orphan")
+    fonctionnalites = relationship(
+        "FonctionnaliteService", back_populates="service", cascade="all, delete-orphan"
+    )
 
 
 class MasqueService(Base):

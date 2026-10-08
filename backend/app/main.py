@@ -7,7 +7,7 @@ from .routers import (
     auth_router, domaines_router, processes_router, etapes_router, etapes_standalone_router,
     masques_router, services_router, procedures_router, tables_router,
     attributs_router, dcs_router, archives_router, search_router,
-    etape_masques_router
+    etape_masques_router, fonctionnalites_router
 )
 from .routers.upload import router as upload_router
 
@@ -48,6 +48,38 @@ def apply_schema_patches() -> None:
         "ALTER TABLE processes ADD COLUMN IF NOT EXISTS diagramme_url VARCHAR",
         "ALTER TABLE processes ADD COLUMN IF NOT EXISTS diagramme_type VARCHAR",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key VARCHAR",
+        # Fonctionnalités : les tables sont créées ici et pas via create_all(),
+        # car main.py importe le Base de database.py, qui n'est pas celui des
+        # modèles (deux bases déclaratives distinctes).
+        """
+        CREATE TABLE IF NOT EXISTS fonctionnalites (
+            id SERIAL PRIMARY KEY,
+            titre VARCHAR(255) NOT NULL,
+            description TEXT,
+            masque_id INTEGER NOT NULL REFERENCES masques(id) ON DELETE CASCADE,
+            ordre INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS fonctionnalite_services (
+            id SERIAL PRIMARY KEY,
+            fonctionnalite_id INTEGER NOT NULL
+                REFERENCES fonctionnalites(id) ON DELETE CASCADE,
+            service_id INTEGER NOT NULL
+                REFERENCES services(id) ON DELETE CASCADE
+        )
+        """,
+        # Migration etape_id -> masque_id : la fonctionnalité appartient au
+        # masque (la page technique), pas à l'étape. Les anciennes lignes
+        # créées sur base d'etape_id sont abandonnées (section vidée avant la
+        # bascule).
+        "ALTER TABLE fonctionnalites ADD COLUMN IF NOT EXISTS masque_id INTEGER REFERENCES masques(id) ON DELETE CASCADE",
+        "DELETE FROM fonctionnalites WHERE masque_id IS NULL",
+        "ALTER TABLE fonctionnalites ALTER COLUMN masque_id SET NOT NULL",
+        "ALTER TABLE fonctionnalites DROP COLUMN IF EXISTS etape_id",
+        "CREATE INDEX IF NOT EXISTS ix_fonctionnalites_masque_id ON fonctionnalites(masque_id)",
     ]
     with engine.begin() as conn:
         for statement in patches:
@@ -81,6 +113,7 @@ app.include_router(etapes_standalone_router)
 app.include_router(masques_router)
 app.include_router(etape_masques_router)
 app.include_router(services_router)
+app.include_router(fonctionnalites_router)
 app.include_router(procedures_router)
 app.include_router(tables_router)
 app.include_router(attributs_router)
@@ -109,6 +142,7 @@ def get_stats():
     from .models.service import Service
     from .models.table import TableInfo
     from .models.dc import DC
+    from .models.fonctionnalite import Fonctionnalite
 
     db = SessionLocal()
     try:
@@ -117,6 +151,7 @@ def get_stats():
             "processes": db.query(Process).count(),
             "etapes": db.query(Etape).count(),
             "masques": db.query(Masque).count(),
+            "fonctionnalites": db.query(Fonctionnalite).count(),
             "services": db.query(Service).count(),
             "tables": db.query(TableInfo).count(),
             "dcs": db.query(DC).count()

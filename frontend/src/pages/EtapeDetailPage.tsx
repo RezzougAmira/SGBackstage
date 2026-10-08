@@ -21,6 +21,7 @@ export function EtapeDetailPage() {
   const [etape, setEtape] = useState<EtapeDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [showMasqueForm, setShowMasqueForm] = useState(false);
+  const [masqueEnEdition, setMasqueEnEdition] = useState<MasqueRef | null>(null);
   const [masqueToDelete, setMasqueToDelete] = useState<MasqueRef | null>(null);
   const [masqueImpact, setMasqueImpact] = useState<MasqueImpact | null>(null);
   const [portee, setPortee] = useState<"detacher" | "supprimer">("detacher");
@@ -59,6 +60,20 @@ export function EtapeDetailPage() {
     await fetchEtape(parseInt(id));
     setShowMasqueForm(false);
     showToast(`Masque "${masque.nom}" ajouté à l'étape.`);
+  };
+
+  const handleEditMasque = async (data: MasqueFormData) => {
+    if (!masqueEnEdition || !id) return;
+    const masque = await masquesApi.update(masqueEnEdition.id, {
+      code: data.code,
+      nom: data.nom,
+      description: data.description,
+      image_key: data.image_key,
+    });
+    const etapeId = parseInt(id);
+    setMasqueEnEdition(null);
+    await fetchEtape(etapeId);
+    showToast(`Masque "${masque.nom}" modifié.`);
   };
 
   // Deux façons de retirer un masque, très différentes en conséquences :
@@ -212,6 +227,7 @@ export function EtapeDetailPage() {
             ),
           }}
           onDeleteMasque={askDeleteMasque}
+          onEditMasque={setMasqueEnEdition}
         />
       </div>
 
@@ -298,14 +314,26 @@ export function EtapeDetailPage() {
             },
           ],
         }}
-        checkbox={
+        radio2={
           portee === "supprimer" && nbServices > 0
             ? {
-                label: "Supprimer aussi les services et procédures associés",
-                description:
-                  "Sinon, les services sont conservés (un service peut être appelé par plusieurs masques).",
-                checked: supprimerServices,
-                onChange: setSupprimerServices,
+                label: "Et les services et procédures associés ?",
+                value: supprimerServices ? "supprimer" : "conserver",
+                onChange: (v) => setSupprimerServices(v === "supprimer"),
+                options: [
+                  {
+                    value: "conserver",
+                    label: "Les conserver dans la base",
+                    description:
+                      "Ils restent utilisables par les autres masques et fonctionnalités.",
+                  },
+                  {
+                    value: "supprimer",
+                    label: "Les supprimer aussi de la base",
+                    description:
+                      "Seuls ceux qui ne servent qu'ici et qui ne sont cités par aucune demande de changement sont effacés.",
+                  },
+                ],
               }
             : undefined
         }
@@ -318,6 +346,22 @@ export function EtapeDetailPage() {
           submitLabel="Créer le masque"
           onSubmit={handleCreateMasque}
           onCancel={() => setShowMasqueForm(false)}
+        />
+      )}
+
+      {masqueEnEdition && (
+        <MasqueForm
+          key={masqueEnEdition.id}
+          initialData={{
+            code: masqueEnEdition.code,
+            nom: masqueEnEdition.nom,
+            description: masqueEnEdition.description ?? "",
+            image_key: masqueEnEdition.image_key,
+          }}
+          hideService
+          submitLabel="Enregistrer"
+          onSubmit={handleEditMasque}
+          onCancel={() => setMasqueEnEdition(null)}
         />
       )}
 

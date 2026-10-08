@@ -71,27 +71,28 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' });
   }
 
-  // POST
-  async post<T>(endpoint: string, data: unknown): Promise<T> {
+  // POST — `data` est optionnel : certaines routes POST n'attendent aucun
+  // corps (rattacher un service, par exemple).
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
-      body: JSON.stringify(data),
+      ...(data === undefined ? {} : { body: JSON.stringify(data) }),
     });
   }
 
   // PUT
-  async put<T>(endpoint: string, data: unknown): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      ...(data === undefined ? {} : { body: JSON.stringify(data) }),
     });
   }
 
   // PATCH — mise à jour partielle d'une ressource.
-  async patch<T>(endpoint: string, data: unknown): Promise<T> {
+  async patch<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PATCH',
-      body: JSON.stringify(data),
+      ...(data === undefined ? {} : { body: JSON.stringify(data) }),
     });
   }
 
