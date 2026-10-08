@@ -11,6 +11,7 @@ class ServiceCreate(BaseModel):
     output_desc: Optional[str] = None
     controleur: Optional[str] = None
     modifie_bdd: Optional[bool] = False
+    collection: Optional[dict] = None
 
 
 class ServiceResponse(BaseModel):
@@ -22,6 +23,7 @@ class ServiceResponse(BaseModel):
     output_desc: Optional[str]
     controleur: Optional[str]
     modifie_bdd: bool
+    collection: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
 

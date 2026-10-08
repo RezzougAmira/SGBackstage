@@ -67,6 +67,7 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
       output_desc: string;
       controleur: string;
       modifie_bdd: boolean;
+      collection?: Record<string, unknown> | null;
     };
   } | null>(null);
   const [erreurEditionService, setErreurEditionService] = useState<string | null>(null);
@@ -537,6 +538,7 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                     output_desc: s.output_desc ?? "",
                                     controleur: s.controleur ?? "",
                                     modifie_bdd: s.modifie_bdd ?? false,
+                                    collection: s.collection ?? null,
                                   },
                                 });
                               }}
@@ -600,7 +602,7 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                   </div>
                                 )}
                                 {s.modifie_bdd !== null &&
-                                  s.modifie_bdd !== undefined && (
+                                    s.modifie_bdd !== undefined && (
                                     <div>
                                       <dt className="font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
                                         Modifie la base
@@ -613,6 +615,19 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                         }`}
                                       >
                                         {s.modifie_bdd ? "Oui" : "Non"}
+                                      </dd>
+                                    </div>
+                                  )}
+                                {s.collection &&
+                                  Object.keys(s.collection).length > 0 && (
+                                    <div className="col-span-full">
+                                      <dt className="font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
+                                        Collection
+                                      </dt>
+                                      <dd className="mt-1 rounded-lg bg-[#f6f8fa] p-2.5 font-mono text-[11px] leading-relaxed text-[#525f6d] dark:bg-white/5 dark:text-white/60">
+                                        <pre className="whitespace-pre-wrap break-words">
+                                          {JSON.stringify(s.collection, null, 2)}
+                                        </pre>
                                       </dd>
                                     </div>
                                   )}

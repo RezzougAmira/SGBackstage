@@ -48,6 +48,7 @@ def apply_schema_patches() -> None:
         "ALTER TABLE processes ADD COLUMN IF NOT EXISTS diagramme_url VARCHAR",
         "ALTER TABLE processes ADD COLUMN IF NOT EXISTS diagramme_type VARCHAR",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key VARCHAR",
+        "ALTER TABLE services ADD COLUMN IF NOT EXISTS collection JSON",
         # Fonctionnalités : les tables sont créées ici et pas via create_all(),
         # car main.py importe le Base de database.py, qui n'est pas celui des
         # modèles (deux bases déclaratives distinctes).

@@ -173,6 +173,7 @@ export interface Service {
   output_desc: string | null;
   controleur: string | null;
   modifie_bdd: boolean;
+  collection: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -201,6 +202,7 @@ export interface FonctionnaliteService {
   output_desc: string | null;
   controleur: string | null;
   modifie_bdd: boolean | null;
+  collection: Record<string, unknown> | null;
   procedures: FonctionnaliteProcedure[];
 }
 

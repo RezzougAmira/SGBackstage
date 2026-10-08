@@ -519,6 +519,7 @@ function libelle(cle: string): string {
     input_desc: "Entrée",
     output_desc: "Sortie",
     modifie_bdd: "Modifie la BDD",
+    collection: "Collection",
     ordre: "Ordre",
     numero: "N°",
     etape_id: "Étape",

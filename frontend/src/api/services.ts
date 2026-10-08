@@ -14,6 +14,7 @@ export const servicesApi = {
     output_desc?: string;
     controleur?: string;
     modifie_bdd?: boolean;
+    collection?: Record<string, unknown> | null;
   }) => api.post<Service>('/api/services', data),
 
   update: (id: number, data: {
@@ -24,6 +25,7 @@ export const servicesApi = {
     output_desc?: string;
     controleur?: string;
     modifie_bdd?: boolean;
+    collection?: Record<string, unknown> | null;
   }) => api.put<Service>(`/api/services/${id}`, data),
 
   delete: (id: number) => api.delete(`/api/services/${id}`),

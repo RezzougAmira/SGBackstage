@@ -9,6 +9,7 @@ interface ServiceFormProps {
     output_desc: string;
     controleur: string;
     modifie_bdd: boolean;
+    collection?: Record<string, unknown> | null;
   };
   onSubmit: (data: {
     nom: string;
@@ -18,6 +19,7 @@ interface ServiceFormProps {
     output_desc?: string;
     controleur?: string;
     modifie_bdd?: boolean;
+    collection?: Record<string, unknown> | null;
   }) => Promise<void>;
   onCancel: () => void;
 }
@@ -39,10 +41,30 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
   const [inputDesc, setInputDesc] = useState(initialData?.input_desc || '');
   const [outputDesc, setOutputDesc] = useState(initialData?.output_desc || '');
   const [controleur, setControleur] = useState(initialData?.controleur || '');
+  const [collectionStr, setCollectionStr] = useState(() =>
+    initialData?.collection ? JSON.stringify(initialData.collection, null, 2) : ''
+  );
+  const [collectionError, setCollectionError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    let collection: Record<string, unknown> | undefined;
+    if (collectionStr.trim()) {
+      try {
+        const parsed = JSON.parse(collectionStr);
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          setCollectionError("La collection doit être un objet JSON (ex : { \"champ\": \"type\" }).");
+          return;
+        }
+        collection = parsed as Record<string, unknown>;
+      } catch {
+        setCollectionError("JSON invalide : vérifiez la syntaxe (virgules, accolades, guillemets).");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       await onSubmit({
@@ -53,6 +75,7 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
         output_desc: outputDesc || undefined,
         controleur: controleur || undefined,
         modifie_bdd: true,
+        collection: collection ?? undefined,
       });
     } finally {
       setLoading(false);
@@ -126,6 +149,25 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
           className={inputClass}
           placeholder="ex: Informations client"
         />
+      </div>
+      <div className="col-span-2">
+        <label className={labelClass}>
+          Collection (JSON) — données que le service lit ou écrit
+        </label>
+        <textarea
+          value={collectionStr}
+          onChange={(e) => {
+            setCollectionStr(e.target.value);
+            if (collectionError) setCollectionError('');
+          }}
+          rows={6}
+          className={`${inputClass} font-mono ${collectionError ? "border-red-500 focus:border-red-500" : ""}`}
+          placeholder={'{\n  "champ": "type",\n  "exemple": "valeur"\n}'}
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          Laisser vide si aucune collection n'est utilisée.
+        </p>
+        {collectionError && <p className="mt-1 text-xs text-red-500">{collectionError}</p>}
       </div>
       <div className="col-span-2 mt-2 flex justify-end gap-3 border-t border-gray-100 pt-4 dark:border-white/10">
         <button type="button" onClick={onCancel} className={`${btnRedOutline} w-32`}>
