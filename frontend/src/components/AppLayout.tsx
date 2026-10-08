@@ -56,14 +56,6 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "Table & attributs",
-    to: "/tables",
-    paths: [
-      "M3.75 6A2.25 2.25 0 0 1 6 3.75h12A2.25 2.25 0 0 1 20.25 6v12A2.25 2.25 0 0 1 18 20.25H6A2.25 2.25 0 0 1 3.75 18V6Z",
-      "M15.75 9V20.25M8.25 9V20.25M3.75 9h16.5M3.75 14.25h16.5M3.75 19.5h16.5",
-    ],
-  },
-{
     label: "Demandes de changement",
     to: "/demandes-de-changement",
     paths: [

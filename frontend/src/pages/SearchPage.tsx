@@ -97,13 +97,9 @@ export function SearchPage() {
               <h2 className="text-lg font-semibold mb-4">Tables</h2>
               <div className="space-y-2">
                 {results.tables.map((t) => (
-                  <Link
-                    key={t.id}
-                    to={`/tables/${t.id}`}
-                    className="block p-3 hover:bg-gray-50 rounded-lg"
-                  >
+                  <div key={t.id} className="p-3 rounded-lg">
                     <span className="font-medium text-blue-600">{t.nom}</span>
-                  </Link>
+                  </div>
                 ))}
               </div>
             </div>

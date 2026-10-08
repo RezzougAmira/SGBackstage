@@ -11,8 +11,6 @@ import { DCListPage } from './pages/DCListPage';
 import { DCDetailPage } from './pages/DCDetailPage';
 import { DCCreatePage } from './pages/DCCreatePage';
 import { SearchPage } from './pages/SearchPage';
-import { TablesAttributsPage } from './pages/TablesAttributsPage';
-import { TableDetailPage } from './pages/TableDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { MonProfilPage } from './pages/MonProfilPage';
 import { HistoriquePage } from './pages/HistoriquePage';
@@ -84,8 +82,8 @@ function AppRoutes() {
         <Route path="/masques" element={<NotFoundPage />} />
         <Route path="/services" element={<NotFoundPage />} />
         <Route path="/procedures" element={<NotFoundPage />} />
-        <Route path="/tables" element={<TablesAttributsPage />} />
-        <Route path="/tables/:id" element={<TableDetailPage />} />
+        <Route path="/tables" element={<NotFoundPage />} />
+        <Route path="/tables/:id" element={<NotFoundPage />} />
         <Route path="/archives" element={<NotFoundPage />} />
         <Route path="/profil" element={<MonProfilPage />} />
         <Route
