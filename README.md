@@ -925,9 +925,9 @@ Le script `seed.py` peuple la base avec des données fictives mais réalistes po
 
 ## Équipe
 
-- **Développeur** : [Votre nom]
-- **Encadrant** : [Nom de l'encadrante AGB]
-- **Période** : [Dates du stage]
+- **Développeur** : REZZOUG AMIRA
+- **Encadrant** : 
+- **Période** : 13 SEP - 13 OCT
 - **Entreprise** : AGB — Département Développement
 
 ---
