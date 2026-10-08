@@ -20,13 +20,6 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "Historique",
-    to: "/historique",
-    paths: [
-      "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z",
-    ],
-  },
-  {
     label: "Domaines",
     to: "/domaines",
     paths: [
@@ -70,14 +63,21 @@ const NAV_ITEMS: NavItem[] = [
       "M15.75 9V20.25M8.25 9V20.25M3.75 9h16.5M3.75 14.25h16.5M3.75 19.5h16.5",
     ],
   },
-  {
+{
     label: "Demandes de changement",
     to: "/demandes-de-changement",
     paths: [
       "M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99",
     ],
   },
-{
+  {
+    label: "Historique",
+    to: "/historique",
+    paths: [
+      "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z",
+    ],
+  },
+  {
     label: "Archives",
     to: "/archives",
     paths: [
