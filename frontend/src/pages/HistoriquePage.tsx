@@ -113,12 +113,11 @@ function FilterSelect({
 /*  Page "Journal des changements"                                             */
 /* -------------------------------------------------------------------------- */
 
-const PAR_PAGE = 25;
-
 export function HistoriquePage() {
   const [evenements, setEvenements] = useState<HistoriqueEvent[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [parPage, setParPage] = useState(25);
   const [action, setAction] = useState<HistoriqueAction | "">("");
   const [typeEntite, setTypeEntite] = useState<HistoriqueTypeEntite | "">("");
   const [deplie, setDeplie] = useState<number | null>(null);
@@ -131,7 +130,7 @@ export function HistoriquePage() {
         action: action || undefined,
         type_entite: typeEntite || undefined,
         page,
-        par_page: PAR_PAGE,
+        par_page: parPage,
       });
       setEvenements(data.evenements);
       setTotal(data.total);
@@ -141,7 +140,7 @@ export function HistoriquePage() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action, typeEntite, page]);
+  }, [action, typeEntite, page, parPage]);
 
   useEffect(() => {
     charger();
@@ -153,7 +152,7 @@ export function HistoriquePage() {
     setPage(1);
   };
 
-  const totalPages = Math.max(1, Math.ceil(total / PAR_PAGE));
+  const totalPages = Math.max(1, Math.ceil(total / parPage));
 
   return (
     <div>
@@ -270,9 +269,9 @@ export function HistoriquePage() {
             <p>
               {total === 0
                 ? "0 événements"
-                : `${((page - 1) * PAR_PAGE + 1)
+                : `${((page - 1) * parPage + 1)
                     .toString()
-                    .padStart(2, "0")}-${Math.min(page * PAR_PAGE, total)
+                    .padStart(2, "0")}-${Math.min(page * parPage, total)
                     .toString()
                     .padStart(2, "0")} par ${total} événements`}
             </p>
@@ -325,6 +324,27 @@ export function HistoriquePage() {
               >
                 <IconChevronDoubleRight />
               </button>
+            </div>
+
+            <div className="flex items-center gap-2 lowercase">
+              <div className="relative">
+                <select
+                  value={parPage}
+                  onChange={(e) => {
+                    setParPage(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="appearance-none rounded-md border border-[#003049] bg-transparent px-3 py-1.5 pr-6 text-xs font-medium text-[#003049] outline-none dark:border-white/40 dark:text-white"
+                >
+                  {[10, 25, 50].map((n) => (
+                    <option key={n} value={n}>
+                      {n.toString().padStart(2, "0")}
+                    </option>
+                  ))}
+                </select>
+                <IconChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2" />
+              </div>
+              <span>éléments par Page</span>
             </div>
           </div>
         </>
