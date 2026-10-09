@@ -90,15 +90,12 @@ class EtapeMasqueImpact(BaseModel):
     etape_count: int
     # Détail des autres étapes, pour que l'utilisateur voie ce qu'il perd.
     autres_etapes: List[str] = []
-    # Un masque cité par une demande de changement ne peut pas être effacé.
-    dcs: List[str] = []
     fonctions_count: int = 0
     services_count: int = 0
     procedures_count: int = 0
 
 
 class EtapeImpact(BaseModel):
-    dcs: List[str] = []
     masques: List[EtapeMasqueImpact] = []
 
 

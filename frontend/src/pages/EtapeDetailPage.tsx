@@ -249,15 +249,6 @@ export function EtapeDetailPage() {
               <p className="mt-2 text-xs text-[#8ea0b3]">Analyse de l'impact...</p>
             )}
 
-            {masqueImpact && masqueImpact.dcs.length > 0 && (
-              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">
-                Suppression impossible : ce masque est cité par{" "}
-                {masqueImpact.dcs.length} demande(s) de changement (
-                {masqueImpact.dcs.join(", ")}). Vous pouvez néanmoins le retirer
-                de cette étape.
-              </p>
-            )}
-
             {masqueImpact && portee === "supprimer" && (
               <div className="mt-3 rounded-lg bg-[#fbfbfe] p-3 text-xs dark:bg-white/5">
                 {masqueImpact.etapes.length > 0 && (
@@ -285,9 +276,7 @@ export function EtapeDetailPage() {
 
             {impactIndisponible && portee === "supprimer" && (
               <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-                Détail des services indisponible (backend à redémarrer ?). Les
-                services cités par une demande de changement resteront malgré
-                tout protégés.
+                Détail des services indisponible (backend à redémarrer ?).
               </p>
             )}
           </>
@@ -310,7 +299,7 @@ export function EtapeDetailPage() {
               value: "supprimer",
               label: "Le supprimer définitivement de la base",
               description:
-                "Le masque est effacé de toutes les étapes. S'il est cité par une demande de changement, la suppression sera refusée.",
+                "Le masque est effacé de toutes les étapes.",
             },
           ],
         }}
@@ -331,7 +320,7 @@ export function EtapeDetailPage() {
                     value: "supprimer",
                     label: "Les supprimer aussi de la base",
                     description:
-                      "Seuls ceux qui ne servent qu'ici et qui ne sont cités par aucune demande de changement sont effacés.",
+                      "Seuls ceux qui ne servent qu'ici sont effacés.",
                   },
                 ],
               }

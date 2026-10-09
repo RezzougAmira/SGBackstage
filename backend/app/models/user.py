@@ -1,5 +1,4 @@
 from sqlalchemy import Column, Integer, String, DateTime
-from sqlalchemy.orm import relationship
 from datetime import datetime
 from .base import Base
 
@@ -17,5 +16,3 @@ class User(Base):
     # public et l'URL signerait expire. L'image se récupère via /api/upload/.
     avatar_key = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-
-    dcs = relationship("DC", back_populates="auteur")

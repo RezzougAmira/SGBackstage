@@ -101,14 +101,6 @@ def delete_domaine(
         raise HTTPException(status_code=404, detail="Domaine non trouvé")
 
     avant = snapshot(db_domaine)
-    # Une demande de changement porte sur une étape du domaine : supprimer le
-    # domaine emporterait les process et leurs étapes, ce qui casserait le
-    # rattachement sans laisser de trace. On refuse plutôt que de choisir.
-    for process in db_domaine.processes:
-        for etape in process.etapes:
-            impact.refuser_si_reference_dc(
-                impact.dcs_de_etape(db, etape.id), "cette étape"
-            )
     db.delete(db_domaine)
     db.commit()
     enregistrer_historique(

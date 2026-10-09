@@ -263,8 +263,7 @@ export function DomainesPage() {
                 {domaineToDelete.processus} process
                 {domaineToDelete.processus > 1 ? " le" : ""}
                 {domaineToDelete.etapes > 0 && `${domaineToDelete.processus > 0 ? " et " : ""}${domaineToDelete.etapes} étape${domaineToDelete.etapes > 1 ? "s" : ""} en dépendent`}{" "}
-                et seront supprimés avec lui. La suppression sera refusée si une
-                étape est citée par une demande de changement.
+                et seront supprimés avec lui.
               </p>
             )}
           </>

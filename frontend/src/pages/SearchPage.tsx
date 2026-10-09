@@ -39,7 +39,7 @@ export function SearchPage() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher un masque, service, table, DC..."
+            placeholder="Rechercher un masque, service, table..."
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <button
@@ -105,24 +105,7 @@ export function SearchPage() {
             </div>
           )}
 
-          {results.dcs.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Demandes de changement</h2>
-              <div className="space-y-2">
-                {results.dcs.map((dc) => (
-                  <Link
-                    key={dc.id}
-                    to={`/dcs/${dc.id}`}
-                    className="block p-3 hover:bg-gray-50 rounded-lg"
-                  >
-                    <span className="font-medium text-blue-600">{dc.numero}</span> — {dc.titre}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {results.masques.length === 0 && results.services.length === 0 && results.tables.length === 0 && results.dcs.length === 0 && (
+          {results.masques.length === 0 && results.services.length === 0 && results.tables.length === 0 && (
             <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
               Aucun résultat pour "{query}"
             </div>

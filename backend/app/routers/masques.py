@@ -129,13 +129,11 @@ def get_masque_impact(masque_id: int, db: Session = Depends(get_db)):
                 nom=svc.nom,
                 masque_count=len(impact.masques_du_service(db, svc.id)),
                 autres_masques=[f"{m.code} — {m.nom}" for m in autres],
-                dcs=impact.dcs_de_service(db, svc.id),
                 procedures=[f"{p.nom} ({p.id})" for p in procedures],
             )
         )
 
     return MasqueImpact(
-        dcs=impact.dcs_de_masque(db, db_masque.id),
         etapes=[
             impact.libelle_etape(e)
             for e in impact.etapes_du_masque(db, db_masque.id)
@@ -158,15 +156,11 @@ def delete_masque(
       - par défaut, les services et procédures sont conservés (un service peut
         être appelé par plusieurs masques) ;
       - sur demande explicite, ils sont effacés, mais uniquement s'ils ne
-        servent qu'ici et qu'aucune demande de changement ne les cite.
+        servent qu'ici.
     """
     db_masque = db.query(Masque).filter(Masque.id == masque_id).first()
     if not db_masque:
         raise HTTPException(status_code=404, detail="Masque non trouvé")
-
-    impact.refuser_si_reference_dc(
-        impact.dcs_de_masque(db, db_masque.id), "ce masque"
-    )
 
     # Relevé avant suppression : les liens masque→service partent avec le masque.
     services = [ms.service for ms in db_masque.services if ms.service]
@@ -181,10 +175,6 @@ def delete_masque(
 
     if supprimer_services:
         for service in services:
-            dcs = impact.dcs_de_service(db, service.id)
-            if dcs:
-                conserves.append(f"{service.nom} — cité par {', '.join(dcs)}")
-                continue
             autres = [
                 m for m in impact.masques_du_service(db, service.id)
             ]
@@ -200,13 +190,12 @@ def delete_masque(
                 procedure = sp.procedure
                 if not procedure:
                     continue
-                dcs_proc = impact.dcs_de_procedure(db, procedure.id)
                 ailleurs = impact.services_de_la_procedure(
                     db, procedure.id, exclude_service_id=service.id
                 )
-                if dcs_proc or ailleurs:
+                if ailleurs:
                     conserves.append(
-                        f"{procedure.nom} — utilisé ailleurs ou cité par une DC"
+                        f"{procedure.nom} — utilisé ailleurs"
                     )
                     continue
                 db.delete(procedure)

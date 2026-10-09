@@ -27,15 +27,6 @@ def get_archive(archive_id: int, db: Session = Depends(get_db)):
         "id": archive.id,
         "identifiant": archive.identifiant,
         "date_push": archive.date_push,
-        "dcs": [
-            {
-                "id": dc.id,
-                "numero": dc.numero,
-                "titre": dc.titre,
-                "date": dc.date
-            }
-            for dc in archive.dcs
-        ]
     }
 
 

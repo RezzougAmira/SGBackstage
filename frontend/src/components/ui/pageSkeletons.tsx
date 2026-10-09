@@ -172,7 +172,7 @@ export function ProcessDetailSkeleton() {
   );
 }
 
-/** Détail générique : étape, demande de changement, table. */
+/** Détail générique : étape, table. */
 export function DetailSkeleton() {
   return (
     <div>
@@ -187,16 +187,6 @@ export function DetailSkeleton() {
           ))}
         </div>
       </div>
-    </div>
-  );
-}
-
-/** Liste de demandes de changement. */
-export function DCListSkeleton() {
-  return (
-    <div>
-      <SkeletonTitle />
-      <SkeletonTable rows={6} columns={5} />
     </div>
   );
 }

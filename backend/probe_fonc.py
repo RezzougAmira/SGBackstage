@@ -30,7 +30,6 @@ from app.database import get_db
 from app.models.base import Base
 from app.models import Masque, Fonctionnalite, Service, ProcedureStockee
 from app.models import ServiceProcedure, TableInfo, ProcedureTable
-from app.models import DC, DCService, DCProcedure
 from app.models import Historique, User
 from app.routers.fonctionnalites import router as fonctionnalites_router
 from app.routers.services import router as services_router
@@ -263,42 +262,18 @@ assert r.status_code == 204, r.text
 assert db.query(ProcedureStockee).count() == 3, "procedure supprimee au detachement"
 print("OK  detachement conserve la procedure")
 
-# 16. Suppression de procédure : refusee si citee par une demande de changement.
-dc2 = DC(numero="DC-9001", titre="Toucher a la procedure", description=None)
-db.add(dc2); db.commit(); db.refresh(dc2)
-db.add(DCProcedure(dc_id=dc2.id, procedure_id=sp_id, action="Nouvelle colonne", details="x"))
-db.commit()
-
-r = client.delete(f"/api/procedures/{sp_id}", headers=headers)
-assert r.status_code == 409, r.text
-assert db.query(ProcedureStockee).filter(ProcedureStockee.id == sp_id).count() == 1, "procedure citee par une DC supprimee !"
-print("OK  suppression procedure bloquee par reference DC (409)")
-
-# sans cette reference, la suppression reussit
-db.query(DCProcedure).filter_by(dc_id=dc2.id).delete(); db.commit()
+# 16. Suppression de procédure : autorisée hors référence externe.
 r = client.delete(f"/api/procedures/{sp_id}", headers=headers)
 assert r.status_code == 204, r.text
 assert db.query(ProcedureStockee).filter(ProcedureStockee.id == sp_id).count() == 0
-print("OK  suppression procedure autorisee hors reference DC")
+print("OK  suppression procedure")
 
-# 17. Suppression de service : refusee si citee par une demande de changement.
-dc = DC(numero="DC-9002", titre="Toucher au service", description=None)
-db.add(dc); db.commit(); db.refresh(dc)
-db.add(DCService(dc_id=dc.id, service_id=s1.id, action="Modifié", details="x"))
-db.commit()
-
-r = client.delete(f"/api/services/{s1.id}", headers=headers)
-assert r.status_code == 409, r.text
-assert db.query(Service).filter(Service.id == s1.id).count() == 1, "service cite par une DC supprime !"
-print("OK  suppression service bloquee par reference DC (409)")
-
-# sans cette reference, la suppression reussit
-db.query(DCService).filter_by(dc_id=dc.id).delete(); db.commit()
+# 17. Suppression de service, liens compris.
 r = client.delete(f"/api/services/{s1.id}", headers=headers)
 assert r.status_code == 204, r.text
 assert db.query(Service).filter(Service.id == s1.id).count() == 0
 assert client.delete("/api/services/99999", headers=headers).status_code == 404
-print("OK  suppression service autorisee hors reference DC")
+print("OK  suppression service")
 
 # Les suppressions sont tracees : avec l'instantané « avant » riche, même après
 # la disparition de l'objet (nom conservé, champs saisis).

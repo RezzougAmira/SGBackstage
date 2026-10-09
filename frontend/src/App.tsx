@@ -7,9 +7,6 @@ import { DomainesPage } from './pages/DomainesPage';
 import { DomaineDetailPage } from './pages/DomaineDetailPage';
 import { ProcessDetailPage } from './pages/ProcessDetailPage';
 import { EtapeDetailPage } from './pages/EtapeDetailPage';
-import { DCListPage } from './pages/DCListPage';
-import { DCDetailPage } from './pages/DCDetailPage';
-import { DCCreatePage } from './pages/DCCreatePage';
 import { SearchPage } from './pages/SearchPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { MonProfilPage } from './pages/MonProfilPage';
@@ -74,10 +71,6 @@ function AppRoutes() {
         <Route path="/domaines/:id" element={<DomaineDetailPage />} />
         <Route path="/processes/:id" element={<ProcessDetailPage />} />
         <Route path="/etapes/:id" element={<EtapeDetailPage />} />
-        <Route path="/dcs" element={<DCListPage />} />
-        <Route path="/demandes-de-changement" element={<DCListPage />} />
-        <Route path="/dcs/new" element={<DCCreatePage />} />
-        <Route path="/dcs/:id" element={<DCDetailPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/masques" element={<NotFoundPage />} />
         <Route path="/services" element={<NotFoundPage />} />

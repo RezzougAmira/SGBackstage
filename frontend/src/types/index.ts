@@ -100,23 +100,19 @@ export interface EtapeDetail extends Etape {
 // ======================
 // SUPPRESSION ET IMPACT
 // ======================
-// Ce qu'un objet traîne derrière lui : les étapes qui le partagent et les
-// demandes de changement qui le citent. Un objet cité par une DC ne peut pas
-// être effacé, sinon l'historique de traçabilité disparaît.
+// Ce qu'un objet traîne derrière lui : les étapes qui le partagent.
 export interface EtapeMasqueImpact {
   id: number;
   code: string;
   nom: string;
   etape_count: number;
   autres_etapes: string[];
-  dcs: string[];
   fonctions_count: number;
   services_count: number;
   procedures_count: number;
 }
 
 export interface EtapeImpact {
-  dcs: string[];
   masques: EtapeMasqueImpact[];
 }
 
@@ -125,12 +121,10 @@ export interface MasqueServiceImpact {
   nom: string;
   masque_count: number;
   autres_masques: string[];
-  dcs: string[];
   procedures: string[];
 }
 
 export interface MasqueImpact {
-  dcs: string[];
   etapes: string[];
   services: MasqueServiceImpact[];
 }
@@ -239,72 +233,13 @@ export interface Attribut {
 // ======================
 // COUCHE TRAÇABILITÉ
 // ======================
-export interface DC {
-  id: number;
-  numero: string;
-  titre: string;
-  description: string | null;
-  date: string;
-  auteur_id: number | null;
-  etape_id: number | null;
-  archive_id: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface DCDetail extends DC {
-  masques: DCMasque[];
-  services: DCService[];
-  procedures: DCProcedure[];
-  tables: DCTable[];
-  attributs: DCAttribut[];
-}
-
-export interface DCMasque {
-  masque_id: number;
-  code: string | null;
-  nom: string | null;
-  action: string;
-  details: string | null;
-}
-
-export interface DCService {
-  service_id: number;
-  nom: string | null;
-  action: string;
-  details: string | null;
-}
-
-export interface DCProcedure {
-  procedure_id: number;
-  nom: string | null;
-  action: string;
-  details: string | null;
-}
-
-export interface DCTable {
-  table_id: number;
-  nom: string | null;
-  action: string;
-  details: string | null;
-}
-
-export interface DCAttribut {
-  attribut_id: number;
-  nom: string | null;
-  action: string;
-  details: string | null;
-}
-
 export interface Archive {
   id: number;
   identifiant: string;
   date_push: string;
 }
 
-export interface ArchiveDetail extends Archive {
-  dcs: DC[];
-}
+export interface ArchiveDetail extends Archive {}
 
 // ======================
 // STATS & HISTORIQUE
@@ -319,7 +254,6 @@ export interface Stats {
   procedures: number;
   tables: number;
   attributs: number;
-  dcs: number;
   archives: number;
   utilisateurs: number;
   evenements: number;
@@ -356,7 +290,6 @@ export type HistoriqueTypeEntite =
   | 'procedure'
   | 'table'
   | 'attribut'
-  | 'dc'
   | 'archive'
   | 'user';
 
@@ -409,7 +342,6 @@ export const HISTORIQUE_ENTITES: Record<HistoriqueTypeEntite, string> = {
   procedure: 'Procédure',
   table: 'Table',
   attribut: 'Attribut',
-  dc: 'Demande de changement',
   archive: 'Archive',
   user: 'Utilisateur',
 };
@@ -421,5 +353,4 @@ export interface SearchResults {
   masques: { id: number; code: string; nom: string }[];
   services: { id: number; nom: string }[];
   tables: { id: number; nom: string }[];
-  dcs: { id: number; numero: string; titre: string }[];
 }

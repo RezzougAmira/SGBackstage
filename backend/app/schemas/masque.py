@@ -48,14 +48,12 @@ class MasqueServiceImpact(BaseModel):
     # Nombre de masques, celui-ci compris, qui appellent ce service.
     masque_count: int
     autres_masques: List[str] = []
-    dcs: List[str] = []
     procedures: List[str] = []
 
 
 class MasqueImpact(BaseModel):
     """Où le masque est utilisé, pour dimensionner la suppression."""
 
-    dcs: List[str] = []
     etapes: List[str] = []
     services: List[MasqueServiceImpact] = []
 

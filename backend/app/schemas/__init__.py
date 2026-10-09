@@ -8,9 +8,4 @@ from .service import ServiceCreate, ServiceResponse
 from .procedure import ProcedureCreate, ProcedureResponse
 from .table import TableCreate, TableResponse
 from .attribut import AttributCreate, AttributResponse
-from .dc import (
-    DCCreate, DCResponse,
-    DCMasqueCreate, DCServiceCreate, DCProcedureCreate,
-    DCTableCreate, DCAttributCreate
-)
 from .archive import ArchiveCreate, ArchiveResponse

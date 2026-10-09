@@ -246,17 +246,10 @@ def delete_service(
     user: User = Depends(get_current_user),
 ):
     """Supprime le service de la base, avec tous ses liens.
-
-    Refusé si une demande de changement le cite : la cascade supprimerait
-    silencieusement l'historique de traçabilité.
     """
     db_service = db.query(Service).filter(Service.id == service_id).first()
     if not db_service:
         raise HTTPException(status_code=404, detail="Service non trouvé")
-
-    impact.refuser_si_reference_dc(
-        impact.dcs_de_service(db, service_id), "ce service"
-    )
 
     avant = snapshot(db_service)
     db.delete(db_service)

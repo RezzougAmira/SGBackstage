@@ -236,8 +236,8 @@ export function DomaineDetailPage() {
             {processToDelete && (processToDelete.etape_count ?? 0) > 0 && (
               <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
                 {(processToDelete.etape_count ?? 0) === 1
-                  ? "1 étape sera supprimée avec lui. La suppression sera refusée si elle est citée par une demande de changement."
-                  : `${processToDelete.etape_count} étapes seront supprimées avec lui. La suppression sera refusée si l'une d'elles est citée par une demande de changement.`}
+                  ? "1 étape sera supprimée avec lui."
+                  : `${processToDelete.etape_count} étapes seront supprimées avec lui.`}
               </p>
             )}
           </>

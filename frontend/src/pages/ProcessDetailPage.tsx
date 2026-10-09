@@ -88,8 +88,8 @@ export function ProcessDetailPage() {
     });
   };
 
-  // L'impact est demandé au clic : il dépend des partages et des demandes de
-  // changement, qui ont pu changer depuis le chargement de la page.
+  // L'impact est demandé au clic : il dépend des partages, qui ont pu changer
+  // depuis le chargement de la page.
   const askDeleteEtape = async (etape: EtapeDetail) => {
     setEtapeToDelete(etape);
     setSupprimerMasques(false);
@@ -135,7 +135,7 @@ export function ProcessDetailPage() {
     }
     if (resultat.masques.conserves.length > 0) {
       summarizes.push(
-        `${resultat.masques.conserves.length} masque(s) conservé(s) (cités par une DC)`
+        `${resultat.masques.conserves.length} masque(s) conservé(s)`
       );
     }
     showToast(
@@ -297,19 +297,9 @@ export function ProcessDetailPage() {
               <p className="mt-2 text-xs text-[#8ea0b3]">Analyse de l'impact...</p>
             )}
 
-            {etapeImpact && etapeImpact.dcs.length > 0 && (
-              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">
-                Suppression impossible : cette étape est citée par{" "}
-                {etapeImpact.dcs.length} demande(s) de changement (
-                {etapeImpact.dcs.join(", ")}).
-              </p>
-            )}
-
             {impactIndisponible && (
               <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-                Détail des partages indisponible (backend à redémarrer ?). Les
-                masques cités par une demande de changement resteront malgré
-                tout protégés.
+                Détail des partages indisponible (backend à redémarrer ?).
               </p>
             )}
 
@@ -329,11 +319,6 @@ export function ProcessDetailPage() {
                       {m.autres_etapes.length > 0 && (
                         <span className="text-[#a8741a]">
                           aussi utilisé dans {m.autres_etapes.join(", ")}
-                        </span>
-                      )}
-                      {m.dcs.length > 0 && (
-                        <span className="text-red-600 dark:text-red-400">
-                          cité par {m.dcs.join(", ")} — sera conservé
                         </span>
                       )}
                     </li>

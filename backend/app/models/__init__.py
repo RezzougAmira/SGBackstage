@@ -10,6 +10,5 @@ from .procedure import ProcedureStockee, ServiceProcedure
 from .fonctionnalite import Fonctionnalite, FonctionnaliteService
 from .table import TableInfo, ProcedureTable
 from .attribut import Attribut
-from .dc import DC, DCMasque, DCService, DCProcedure, DCTable, DCAttribut
 from .archive import Archive
 from .historique import Historique

@@ -76,17 +76,10 @@ def delete_procedure(
     user: User = Depends(get_current_user),
 ):
     """Supprime la procédure stockée et ses liens.
-
-    Refusé si une demande de changement la cite : la cascade supprimerait
-    silencieusement l'historique de traçabilité.
     """
     db_procedure = db.query(ProcedureStockee).filter(ProcedureStockee.id == procedure_id).first()
     if not db_procedure:
         raise HTTPException(status_code=404, detail="Procédure non trouvée")
-
-    impact.refuser_si_reference_dc(
-        impact.dcs_de_procedure(db, procedure_id), "cette procédure"
-    )
 
     avant = snapshot(db_procedure)
     db.delete(db_procedure)

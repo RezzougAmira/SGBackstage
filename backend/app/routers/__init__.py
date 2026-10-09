@@ -9,7 +9,6 @@ from .fonctionnalites import router as fonctionnalites_router
 from .procedures import router as procedures_router
 from .tables import router as tables_router
 from .attributs import router as attributs_router
-from .dcs import router as dcs_router
 from .archives import router as archives_router
 from .search import router as search_router
 from .historique import router as historique_router

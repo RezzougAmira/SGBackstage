@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Stats, DC, HISTORIQUE_ACTIONS, HISTORIQUE_ENTITES } from '../types';
+import { Stats, HISTORIQUE_ACTIONS, HISTORIQUE_ENTITES } from '../types';
 import { searchApi } from '../api/search';
-import { dcApi } from '../api/dc';
 import { DashboardSkeleton } from '../components/ui/pageSkeletons';
 
 const STAT_CARDS: { key: keyof Stats; label: string; color: string }[] = [
@@ -15,7 +14,6 @@ const STAT_CARDS: { key: keyof Stats; label: string; color: string }[] = [
   { key: 'procedures', label: 'Procédures', color: 'cyan' },
   { key: 'tables', label: 'Tables', color: 'teal' },
   { key: 'attributs', label: 'Attributs', color: 'indigo' },
-  { key: 'dcs', label: 'Demandes de changement', color: 'amber' },
   { key: 'archives', label: 'Archives', color: 'slate' },
   { key: 'utilisateurs', label: 'Utilisateurs', color: 'lime' },
 ];
@@ -31,18 +29,13 @@ const ACTION_COLORS: Record<string, string> = {
 
 export function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [recentDCs, setRecentDCs] = useState<DC[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statsData, dcsData] = await Promise.all([
-          searchApi.getStats(),
-          dcApi.list(),
-        ]);
+        const statsData = await searchApi.getStats();
         setStats(statsData);
-        setRecentDCs(dcsData.slice(0, 5));
       } catch (error) {
         console.error('Erreur lors du chargement:', error);
       } finally {
@@ -170,36 +163,6 @@ export function DashboardPage() {
                   {evt.utilisateur?.name ?? 'Inconnu'} · {formatDate(evt.created_at)}
                 </span>
               </div>
-            ))
-          )}
-        </div>
-      </section>
-
-      {/* DC récentes */}
-      <section className="rounded-2xl bg-white shadow-sm dark:bg-[#131313]">
-        <div className="border-b px-6 py-4">
-          <h2 className="text-lg font-semibold">Demandes de changement récentes</h2>
-        </div>
-        <div className="divide-y">
-          {recentDCs.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-500">Aucune DC récente</div>
-          ) : (
-            recentDCs.map((dc) => (
-              <Link
-                key={dc.id}
-                to={`/dcs/${dc.id}`}
-                className="block px-6 py-4 transition hover:bg-gray-50"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-blue-600">{dc.numero}</span>
-                    <span className="ml-3 text-gray-800">{dc.titre}</span>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    {new Date(dc.date).toLocaleDateString('fr-FR')}
-                  </span>
-                </div>
-              </Link>
             ))
           )}
         </div>

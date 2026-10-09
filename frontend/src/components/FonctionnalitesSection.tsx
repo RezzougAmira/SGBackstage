@@ -185,8 +185,8 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
   };
 
   // Confirmée depuis la modale : détache le service de la fonctionnalité
-  // seulement, ou l'efface de toute la base. L'erreur remonte à la modale
-  // (409 si une demande de changement cite le service) qui reste ouverte.
+  // seulement, ou l'efface de toute la base. L'erreur remonte à la modale qui
+  // reste ouverte.
   const confirmerRetraitService = async () => {
     if (!serviceARetirer) return;
     const { fonctionnaliteId, serviceId } = serviceARetirer;
@@ -264,8 +264,8 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
   };
 
   // Confirmée depuis la modale : détache la procédure du service seulement,
-  // ou l'efface de toute la base. L'erreur remonte à la modale (409 si une
-  // demande de changement la cite) qui reste ouverte.
+  // ou l'efface de toute la base. L'erreur remonte à la modale qui reste
+  // ouverte.
   const confirmerRetraitProcedure = async () => {
     if (!procedureARetirer) return;
     const { serviceId, procedureId } = procedureARetirer;
@@ -976,7 +976,7 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
               value: "supprimer",
               label: "Le supprimer définitivement de la base",
               description:
-                "Le service est effacé partout (autres fonctionnalités, masques, liaisons procédures). S'il est cité par une demande de changement, la suppression sera refusée.",
+                "Le service est effacé partout (autres fonctionnalités, masques, liaisons procédures).",
             },
           ],
         }}
@@ -1019,7 +1019,7 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
               value: "supprimer",
               label: "La supprimer définitivement de la base",
               description:
-                "La procédure est effacée partout (autres services, masques, tables). Si elle est citée par une demande de changement, la suppression sera refusée.",
+                "La procédure est effacée partout (autres services, masques, tables).",
             },
           ],
         }}

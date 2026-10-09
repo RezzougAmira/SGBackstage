@@ -112,13 +112,6 @@ def delete_process(
         raise HTTPException(status_code=404, detail="Process non trouvé")
 
     avant = snapshot(db_process)
-    # Une demande de changement porte sur une étape du process : supprimer le
-    # process emporterait l'étape et casserait le rattachement sans laisser de
-    # trace. On refuse plutôt que de choisir.
-    for etape in db_process.etapes:
-        impact.refuser_si_reference_dc(
-            impact.dcs_de_etape(db, etape.id), "cette étape"
-        )
     db.delete(db_process)
     db.commit()
     enregistrer_historique(

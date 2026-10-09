@@ -17,7 +17,6 @@ from app.models.fonctionnalite import Fonctionnalite, FonctionnaliteService
 from app.models.procedure import ProcedureStockee, ServiceProcedure
 from app.models.table import TableInfo, ProcedureTable
 from app.models.attribut import Attribut
-from app.models.dc import DC, DCMasque, DCService, DCProcedure, DCTable, DCAttribut
 from app.models.archive import Archive
 from app.utils.auth import get_password_hash
 
@@ -316,84 +315,6 @@ def seed():
         db.add_all(archives)
         db.commit()
 
-        # ======================
-        # DEMANDES DE CHANGEMENT
-        # ======================
-        dcs = [
-            DC(
-                numero="DC-1498",
-                titre="Corriger validation compte",
-                description="Correction d'un bug dans la validation du compte",
-                auteur_id=users[0].id,
-                etape_id=etapes[2].id,
-                archive_id=archives[0].id
-            ),
-            DC(
-                numero="DC-1499",
-                titre="Modifier seuil crédit",
-                description="Modification du seuil maximum pour les prêts",
-                auteur_id=users[1].id,
-                etape_id=etapes[11].id,
-                archive_id=None
-            ),
-            DC(
-                numero="DC-1500",
-                titre="Ajouter type client",
-                description="Ajout du champ CUSTOMER_TYPE pour distinguer particulier/entreprise",
-                auteur_id=users[0].id,
-                etape_id=etapes[0].id,
-                archive_id=archives[0].id
-            ),
-            DC(
-                numero="DC-1501",
-                titre="Ajouter export PDF",
-                description="Ajout d'un bouton d'export PDF sur l'écran de consultation",
-                auteur_id=users[1].id,
-                etape_id=etapes[4].id,
-                archive_id=archives[1].id
-            ),
-        ]
-        db.add_all(dcs)
-        db.commit()
-
-        # ======================
-        # LIAISONS DC
-        # ======================
-        dc_masques = [
-            DCMasque(dc_id=dcs[0].id, masque_id=masques[6].id, action="Modifié", details="Correction du bouton de validation"),
-            DCMasque(dc_id=dcs[2].id, masque_id=masques[0].id, action="Modifié", details="Ajout du champ type client"),
-            DCMasque(dc_id=dcs[3].id, masque_id=masques[5].id, action="Modifié", details="Ajout bouton export"),
-        ]
-        db.add_all(dc_masques)
-        db.commit()
-
-        dc_services = [
-            DCService(dc_id=dcs[2].id, service_id=services[0].id, action="Modifié", details="Ajout paramètre customer_type"),
-            DCService(dc_id=dcs[2].id, service_id=services[3].id, action="Ajouté", details="Nouveau service de validation"),
-            DCService(dc_id=dcs[3].id, service_id=services[0].id, action="Modifié", details="Ajout méthode export"),
-        ]
-        db.add_all(dc_services)
-        db.commit()
-
-        dc_procedures = [
-            DCProcedure(dc_id=dcs[2].id, procedure_id=procedures[0].id, action="Modifiée", details="Ajout paramètre customer_type"),
-            DCProcedure(dc_id=dcs[2].id, procedure_id=procedures[1].id, action="Modifiée", details="Ajout champ dans update"),
-        ]
-        db.add_all(dc_procedures)
-        db.commit()
-
-        dc_tables = [
-            DCTable(dc_id=dcs[2].id, table_id=tables[0].id, action="Modifiée", details="Ajout colonne CUSTOMER_TYPE"),
-        ]
-        db.add_all(dc_tables)
-        db.commit()
-
-        dc_attributs = [
-            DCAttribut(dc_id=dcs[2].id, attribut_id=attributs[5].id, action="Ajouté", details="Nouveau champ pour distinguer particulier/entreprise"),
-        ]
-        db.add_all(dc_attributs)
-        db.commit()
-
         print("Seed terminé avec succès !")
         print(f"  - {len(users)} utilisateurs")
         print(f"  - {len(domaines)} domaines")
@@ -406,7 +327,6 @@ def seed():
         print(f"  - {len(tables)} tables")
         print(f"  - {len(attributs)} attributs")
         print(f"  - {len(archives)} archives")
-        print(f"  - {len(dcs)} demandes de changement")
 
     except Exception as e:
         db.rollback()

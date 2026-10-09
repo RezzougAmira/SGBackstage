@@ -120,7 +120,6 @@ def _impact_masques(db: Session, etape: Etape) -> List[EtapeMasqueImpact]:
                     for e in etapes_utilisatrices
                     if e.id != etape.id
                 ],
-                dcs=impact.dcs_de_masque(db, masque.id),
                 # L'interface présente un service par « fonction » : les deux
                 # listes portent le même cardinal.
                 fonctions_count=len(services),
@@ -143,7 +142,6 @@ def get_etape_impact(etape_id: int, db: Session = Depends(get_db)):
     if not etape:
         raise HTTPException(status_code=404, detail="Étape non trouvée")
     return EtapeImpact(
-        dcs=impact.dcs_de_etape(db, etape.id),
         masques=_impact_masques(db, etape),
     )
 
@@ -238,15 +236,9 @@ def delete_etape(
     Par défaut l'étape disparaît mais les masques sont conservés : ils peuvent
     être portés par d'autres étapes du même domaine. Le choix est explicite
     parce que supprimer un masque emporte ses liens vers toutes les autres
-    étapes et vers les demandes de changement qui le citent.
+    étapes.
     """
     db_etape = _charger_etape(db, process_id, etape_id)
-
-    # Une demande de changement porte sur une étape : la supprimer effacerait le
-    # rattachement sans laisser de trace. On refuse plutôt que de choisir.
-    impact.refuser_si_reference_dc(
-        impact.dcs_de_etape(db, db_etape.id), "cette étape"
-    )
 
     # Les liens sont relevés avant la suppression : une fois l'étape supprimée,
     # ses liens vers les masques disparaissent avec elle.
@@ -272,14 +264,6 @@ def delete_etape(
 
     if supprimer_masques:
         for masque in masques:
-            dcs = impact.dcs_de_masque(db, masque.id)
-            if dcs:
-                # La case a été cochée, mais l'historique de traçabilité prime :
-                # on garde le masque et on dit pourquoi.
-                conserves.append(
-                    f"{masque.code} — cité par {', '.join(dcs)}"
-                )
-                continue
             others = [
                 e for e in impact.etapes_du_masque(db, masque.id)
             ]

@@ -6,7 +6,7 @@ from .database import engine, Base
 from .routers import (
     auth_router, domaines_router, processes_router, etapes_router, etapes_standalone_router,
     masques_router, services_router, procedures_router, tables_router,
-    attributs_router, dcs_router, archives_router, search_router,
+    attributs_router, archives_router, search_router,
     etape_masques_router, fonctionnalites_router, historique_router
 )
 from .routers.upload import router as upload_router
@@ -134,7 +134,6 @@ app.include_router(fonctionnalites_router)
 app.include_router(procedures_router)
 app.include_router(tables_router)
 app.include_router(attributs_router)
-app.include_router(dcs_router)
 app.include_router(archives_router)
 app.include_router(search_router)
 app.include_router(historique_router)
@@ -160,7 +159,6 @@ def get_stats():
     from .database import SessionLocal
     from .models.archive import Archive
     from .models.attribut import Attribut
-    from .models.dc import DC
     from .models.domaine import Domaine
     from .models.etape import Etape
     from .models.fonctionnalite import Fonctionnalite
@@ -265,7 +263,6 @@ def get_stats():
             "procedures": db.query(ProcedureStockee).count(),
             "tables": db.query(TableInfo).count(),
             "attributs": db.query(Attribut).count(),
-            "dcs": db.query(DC).count(),
             "archives": db.query(Archive).count(),
             "utilisateurs": db.query(User).count(),
             "evenements": db.query(Historique).count(),

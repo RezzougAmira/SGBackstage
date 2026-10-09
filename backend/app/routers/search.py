@@ -5,7 +5,6 @@ from ..database import get_db
 from ..models.masque import Masque
 from ..models.service import Service
 from ..models.table import TableInfo
-from ..models.dc import DC
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
@@ -15,8 +14,7 @@ def search(query: str, db: Session = Depends(get_db)):
     results = {
         "masques": [],
         "services": [],
-        "tables": [],
-        "dcs": []
+        "tables": []
     }
 
     # Rechercher dans les masques
@@ -45,16 +43,6 @@ def search(query: str, db: Session = Depends(get_db)):
     results["tables"] = [
         {"id": t.id, "nom": t.nom}
         for t in tables
-    ]
-
-    # Rechercher dans les DC
-    dcs = db.query(DC).filter(
-        DC.numero.ilike(f"%{query}%") |
-        DC.titre.ilike(f"%{query}%")
-    ).limit(10).all()
-    results["dcs"] = [
-        {"id": dc.id, "numero": dc.numero, "titre": dc.titre}
-        for dc in dcs
     ]
 
     return results
