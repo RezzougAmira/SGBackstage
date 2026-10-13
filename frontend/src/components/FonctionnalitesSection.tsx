@@ -6,6 +6,7 @@ import { Fonctionnalite, Procedure, Service } from "../types";
 import { ServiceForm } from "./forms/ServiceForm";
 import { ProcedureForm } from "./forms/ProcedureForm";
 import { ConfirmModal } from "./ConfirmModal";
+import { EntityHistory } from "./EntityHistory";
 
 type ServiceFormData = Parameters<typeof servicesApi.create>[0];
 
@@ -66,7 +67,6 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
       input_desc: string;
       output_desc: string;
       controleur: string;
-      modifie_bdd: boolean;
       collection?: Record<string, unknown> | null;
     };
   } | null>(null);
@@ -77,6 +77,8 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
     description: string;
   } | null>(null);
   const [erreurEditionProcedure, setErreurEditionProcedure] = useState<string | null>(null);
+  const [historyService, setHistoryService] = useState<{ id: number; nom: string } | null>(null);
+  const [historyProcedure, setHistoryProcedure] = useState<{ id: number; nom: string } | null>(null);
 
   const modifierService = async (data: ServiceFormData) => {
     if (!serviceEnEdition) return;
@@ -523,45 +525,65 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                               )}
                             </button>
                             <Chevron ouvert={ouvert} />
-                            <button
-                              type="button"
-                              title="Modifier le service"
-                              onClick={() => {
-                                setErreurEditionService(null);
-                                setServiceEnEdition({
-                                  id: s.id,
-                                  data: {
-                                    nom: s.nom,
-                                    methode_http: s.methode_http ?? "GET",
-                                    url: s.url ?? "",
-                                    input_desc: s.input_desc ?? "",
-                                    output_desc: s.output_desc ?? "",
-                                    controleur: s.controleur ?? "",
-                                    modifie_bdd: s.modifie_bdd ?? false,
-                                    collection: s.collection ?? null,
-                                  },
-                                });
-                              }}
-                              className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e0f2f1] hover:text-[#26A69A] dark:text-white/50 dark:hover:bg-teal-500/10"
-                            >
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <path d="M17 3a2.85 2.83 0 114.01 4L8 20l-4 1 1-4L17 3z" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              title="Retirer le service"
-                              onClick={() => {
-                                setPorteeService("detacher");
-                                setServiceARetirer({
-                                  fonctionnaliteId: f.id,
-                                  serviceId: s.id,
-                                  serviceNom: s.nom,
-                                  fonctionnaliteTitre: f.titre,
-                                });
-                              }}
-                              className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
-                            >
+                             <button
+                               type="button"
+                               title="Historique du service"
+                               onClick={() => setHistoryService({ id: s.id, nom: s.nom })}
+                               className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e6e8f5] hover:text-[#003049] dark:text-white/50 dark:hover:bg-white/10"
+                             >
+                               <svg
+                                 className="h-4 w-4"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 stroke="currentColor"
+                                 strokeWidth={2}
+                               >
+                                 <path d="M12 8v4l2.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                 <path
+                                   d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                   strokeLinecap="round"
+                                   strokeLinejoin="round"
+                                 />
+                               </svg>
+                             </button>
+                             <button
+                               type="button"
+                               title="Modifier le service"
+                               onClick={() => {
+                                 setErreurEditionService(null);
+                                 setServiceEnEdition({
+                                   id: s.id,
+                                   data: {
+                                     nom: s.nom,
+                                     methode_http: s.methode_http ?? "GET",
+                                     url: s.url ?? "",
+                                     input_desc: s.input_desc ?? "",
+                                     output_desc: s.output_desc ?? "",
+                                      controleur: s.controleur ?? "",
+                                      collection: s.collection ?? null,
+                                   },
+                                 });
+                               }}
+                               className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e0f2f1] hover:text-[#26A69A] dark:text-white/50 dark:hover:bg-teal-500/10"
+                             >
+                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                 <path d="M17 3a2.85 2.83 0 114.01 4L8 20l-4 1 1-4L17 3z" strokeLinecap="round" strokeLinejoin="round" />
+                               </svg>
+                             </button>
+                             <button
+                               type="button"
+                               title="Retirer le service"
+                               onClick={() => {
+                                 setPorteeService("detacher");
+                                 setServiceARetirer({
+                                   fonctionnaliteId: f.id,
+                                   serviceId: s.id,
+                                   serviceNom: s.nom,
+                                   fonctionnaliteTitre: f.titre,
+                                 });
+                               }}
+                               className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
+                             >
                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                 <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
@@ -601,23 +623,6 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                     </dd>
                                   </div>
                                 )}
-                                {s.modifie_bdd !== null &&
-                                    s.modifie_bdd !== undefined && (
-                                    <div>
-                                      <dt className="font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
-                                        Modifie la base
-                                      </dt>
-                                      <dd
-                                        className={`font-poppins text-xs font-semibold ${
-                                          s.modifie_bdd
-                                            ? "text-amber-600 dark:text-amber-300"
-                                            : "text-emerald-600 dark:text-emerald-300"
-                                        }`}
-                                      >
-                                        {s.modifie_bdd ? "Oui" : "Non"}
-                                      </dd>
-                                    </div>
-                                  )}
                                 {s.collection &&
                                   Object.keys(s.collection).length > 0 && (
                                     <div className="col-span-full">
@@ -763,37 +768,58 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                                               </span>
                                             </button>
                                             <Chevron ouvert={pOuverte} />
-                                            <button
-                                              type="button"
-                                              title="Modifier la procédure"
-                                              onClick={() => {
-                                                setErreurEditionProcedure(null);
-                                                setProcedureEnEdition({
-                                                  id: p.id,
-                                                  nom: p.nom,
-                                                  description: p.description ?? "",
-                                                });
-                                              }}
-                                              className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e0f2f1] hover:text-[#26A69A] dark:text-white/50 dark:hover:bg-teal-500/10"
-                                            >
-                                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                                <path d="M17 3a2.85 2.83 0 114.01 4L8 20l-4 1 1-4L17 3z" strokeLinecap="round" strokeLinejoin="round" />
-                                              </svg>
-                                            </button>
-                                            <button
-                                              type="button"
-                                              title="Retirer la procédure"
-                                              onClick={() => {
-                                                setPorteeProcedure("detacher");
-                                                setProcedureARetirer({
-                                                  serviceId: s.id,
-                                                  procedureId: p.id,
-                                                  procedureNom: p.nom,
-                                                  serviceNom: s.nom,
-                                                });
-                                              }}
-                                              className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
-                                            >
+                                             <button
+                                               type="button"
+                                               title="Historique de la procédure"
+                                               onClick={() => setHistoryProcedure({ id: p.id, nom: p.nom })}
+                                               className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e6e8f5] hover:text-[#003049] dark:text-white/50 dark:hover:bg-white/10"
+                                             >
+                                               <svg
+                                                 className="h-4 w-4"
+                                                 viewBox="0 0 24 24"
+                                                 fill="none"
+                                                 stroke="currentColor"
+                                                 strokeWidth={2}
+                                               >
+                                                 <path d="M12 8v4l2.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                 <path
+                                                   d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                   strokeLinecap="round"
+                                                   strokeLinejoin="round"
+                                                 />
+                                               </svg>
+                                             </button>
+                                             <button
+                                               type="button"
+                                               title="Modifier la procédure"
+                                               onClick={() => {
+                                                 setErreurEditionProcedure(null);
+                                                 setProcedureEnEdition({
+                                                   id: p.id,
+                                                   nom: p.nom,
+                                                   description: p.description ?? "",
+                                                 });
+                                               }}
+                                               className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e0f2f1] hover:text-[#26A69A] dark:text-white/50 dark:hover:bg-teal-500/10"
+                                             >
+                                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                                 <path d="M17 3a2.85 2.83 0 114.01 4L8 20l-4 1 1-4L17 3z" strokeLinecap="round" strokeLinejoin="round" />
+                                               </svg>
+                                             </button>
+                                             <button
+                                               type="button"
+                                               title="Retirer la procédure"
+                                               onClick={() => {
+                                                 setPorteeProcedure("detacher");
+                                                 setProcedureARetirer({
+                                                   serviceId: s.id,
+                                                   procedureId: p.id,
+                                                   procedureNom: p.nom,
+                                                   serviceNom: s.nom,
+                                                 });
+                                               }}
+                                               className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
+                                             >
                                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                                 <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
                                               </svg>
@@ -1029,6 +1055,26 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
           setPorteeProcedure("detacher");
         }}
       />
+
+      {historyService && (
+        <EntityHistory
+          typeEntite="service"
+          entiteId={historyService.id}
+          title={historyService.nom}
+          open={true}
+          onClose={() => setHistoryService(null)}
+        />
+      )}
+
+      {historyProcedure && (
+        <EntityHistory
+          typeEntite="procedure"
+          entiteId={historyProcedure.id}
+          title={historyProcedure.nom}
+          open={true}
+          onClose={() => setHistoryProcedure(null)}
+        />
+      )}
     </div>
   );
 }

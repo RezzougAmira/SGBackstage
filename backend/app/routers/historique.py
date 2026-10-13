@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -40,6 +41,7 @@ def list_historique(
     utilisateur_id: Optional[int] = None,
     depuis: Optional[str] = None,
     jusqua: Optional[str] = None,
+    search: Optional[str] = None,
     page: int = Query(1, ge=1),
     par_page: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -62,6 +64,20 @@ def list_historique(
         )
     if jusqua:
         query = query.filter(Historique.created_at <= datetime.fromisoformat(jusqua))
+
+    if search:
+        terme = f"%{search}%"
+        query = (
+            query.outerjoin(User, User.id == Historique.utilisateur_id)
+            .filter(
+                or_(
+                    Historique.nom_entite.ilike(terme),
+                    Historique.type_entite.ilike(terme),
+                    Historique.action.ilike(terme),
+                    User.name.ilike(terme),
+                )
+            )
+        )
 
     total = query.count()
     lignes = (

@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from urllib.parse import quote
 from ..database import get_db
 from ..models.domaine import Domaine
 from ..models.process import Process
@@ -8,9 +9,13 @@ from ..models.user import User
 from ..schemas.domaine import DomaineCreate, DomaineResponse
 from ..utils import impact
 from ..utils.deps import get_current_user
+from ..utils.export_docx import build_domaine_document
+from ..utils.filenames import slug_fichier
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/domaines", tags=["domaines"])
+
+DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 def _serialize(domaine: Domaine):
@@ -37,6 +42,28 @@ def get_domaine(domaine_id: int, db: Session = Depends(get_db)):
     if not domaine:
         raise HTTPException(status_code=404, detail="Domaine non trouvé")
     return _serialize(domaine)
+
+
+@router.get("/{domaine_id}/export")
+def export_domaine_docx(domaine_id: int, db: Session = Depends(get_db)):
+    """Génère le document Word du domaine regroupant tous ses processes (avec
+    leurs étapes), côté serveur."""
+    domaine = db.query(Domaine).filter(Domaine.id == domaine_id).first()
+    if not domaine:
+        raise HTTPException(status_code=404, detail="Domaine non trouvé")
+
+    contenu = build_domaine_document(db, domaine)
+    nom_fichier = f"domaine-{slug_fichier(domaine.nom)}.docx"
+    return Response(
+        content=contenu,
+        media_type=DOCX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"{nom_fichier}\"; "
+                f"filename*=UTF-8''{quote(nom_fichier)}"
+            )
+        },
+    )
 
 
 @router.post("/", response_model=DomaineResponse, status_code=201)

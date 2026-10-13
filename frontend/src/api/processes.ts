@@ -17,4 +17,8 @@ export const processesApi = {
   // Étapes d'un process
   listEtapes: (processId: number) =>
     api.get<Etape[]>(`/api/processes/${processId}/etapes`),
+
+  // Document Word du process (toutes ses étapes), généré côté serveur.
+  exportDocx: (processId: number) =>
+    api.getBlob(`/api/processes/${processId}/export`),
 };

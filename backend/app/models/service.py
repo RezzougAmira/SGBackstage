@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, JSON
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .base import Base
@@ -14,7 +14,6 @@ class Service(Base):
     input_desc = Column(String, nullable=True)
     output_desc = Column(String, nullable=True)
     controleur = Column(String(255), nullable=True)
-    modifie_bdd = Column(Boolean, default=False)
     collection = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

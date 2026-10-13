@@ -166,7 +166,6 @@ export interface Service {
   input_desc: string | null;
   output_desc: string | null;
   controleur: string | null;
-  modifie_bdd: boolean;
   collection: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
@@ -195,7 +194,6 @@ export interface FonctionnaliteService {
   input_desc: string | null;
   output_desc: string | null;
   controleur: string | null;
-  modifie_bdd: boolean | null;
   collection: Record<string, unknown> | null;
   procedures: FonctionnaliteProcedure[];
 }
@@ -319,6 +317,7 @@ export interface HistoriqueFilters {
   utilisateur_id?: number;
   depuis?: string;
   jusqua?: string;
+  search?: string;
   page?: number;
   par_page?: number;
 }

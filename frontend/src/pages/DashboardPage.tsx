@@ -4,18 +4,40 @@ import { Stats, HISTORIQUE_ACTIONS, HISTORIQUE_ENTITES } from '../types';
 import { searchApi } from '../api/search';
 import { DashboardSkeleton } from '../components/ui/pageSkeletons';
 
-const STAT_CARDS: { key: keyof Stats; label: string; color: string }[] = [
-  { key: 'domaines', label: 'Domaines', color: 'blue' },
-  { key: 'processes', label: 'Processus', color: 'green' },
-  { key: 'etapes', label: 'Étapes', color: 'purple' },
-  { key: 'masques', label: 'Masques', color: 'orange' },
-  { key: 'fonctionnalites', label: 'Fonctionnalités', color: 'pink' },
-  { key: 'services', label: 'Services', color: 'red' },
-  { key: 'procedures', label: 'Procédures', color: 'cyan' },
-  { key: 'tables', label: 'Tables', color: 'teal' },
-  { key: 'attributs', label: 'Attributs', color: 'indigo' },
-  { key: 'archives', label: 'Archives', color: 'slate' },
-  { key: 'utilisateurs', label: 'Utilisateurs', color: 'lime' },
+type IconProps = { className?: string };
+
+const DomainIcon = ({ className = "h-5 w-5" }: IconProps) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6Z" />
+    <path d="M13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6Z" />
+    <path d="M3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25Z" />
+    <path d="M13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+  </svg>
+);
+
+const MasqueIcon = ({ className = "h-5 w-5" }: IconProps) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2.25 7.125C2.25 6.504 2.754 6 3.375 6h6c.621 0 1.125.504 1.125 1.125v3.75c0 .621-.504 1.125-1.125 1.125h-6a1.125 1.125 0 0 1-1.125-1.125v-3.75ZM14.25 8.625c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v8.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-8.25ZM3.75 16.125c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v2.25c0 .621-.504 1.125-1.125 1.125h-5.25a1.125 1.125 0 0 1-1.125-1.125v-2.25Z" />
+  </svg>
+);
+
+const FonctionIcon = ({ className = "h-5 w-5" }: IconProps) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <path d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+  </svg>
+);
+
+const ServiceIcon = ({ className = "h-5 w-5" }: IconProps) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 5.625c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+  </svg>
+);
+
+const STAT_CARDS: { key: keyof Stats; label: string; icon: (p: IconProps) => JSX.Element; gradient: string; to?: string }[] = [
+  { key: 'domaines', label: 'Domaines', icon: DomainIcon, gradient: 'from-blue-500 to-blue-700', to: '/domaines' },
+  { key: 'masques', label: 'Masques', icon: MasqueIcon, gradient: 'from-orange-400 to-amber-600', to: '/masques' },
+  { key: 'fonctionnalites', label: 'Fonctionnalités', icon: FonctionIcon, gradient: 'from-pink-500 to-rose-600' },
+  { key: 'services', label: 'Services', icon: ServiceIcon, gradient: 'from-red-500 to-rose-700', to: '/services' },
 ];
 
 const ACTION_COLORS: Record<string, string> = {
@@ -53,18 +75,12 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Tableau de bord</h1>
-        <Link
-          to="/historique"
-          className="inline-flex h-[42px] items-center rounded-xl border border-[#004a86]/20 px-5 text-sm font-medium text-[#004a86] transition hover:bg-[#004a86]/5"
-        >
-          Voir le journal des changements →
-        </Link>
       </div>
 
       {/* Compteurs */}
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {STAT_CARDS.map(({ key, label, color }) => (
-          <StatCard key={key} label={label} value={stats[key] as number} color={color} />
+      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {STAT_CARDS.map(({ key, label, icon, gradient, to }) => (
+          <StatCard key={key} label={label} value={stats[key] as number} icon={icon} gradient={gradient} to={to} />
         ))}
       </div>
 
@@ -211,26 +227,30 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
   return <div className="py-6 text-center text-sm text-gray-500">{children}</div>;
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600',
-    orange: 'bg-orange-50 text-orange-600',
-    pink: 'bg-pink-50 text-pink-600',
-    red: 'bg-red-50 text-red-600',
-    cyan: 'bg-cyan-50 text-cyan-600',
-    teal: 'bg-teal-50 text-teal-600',
-    indigo: 'bg-indigo-50 text-indigo-600',
-    amber: 'bg-amber-50 text-amber-600',
-    slate: 'bg-slate-50 text-slate-600',
-    lime: 'bg-lime-50 text-lime-600',
-  };
-
-  return (
-    <div className={`p-4 rounded-lg ${colorClasses[color]}`}>
-      <div className="text-2xl font-bold">{value}</div>
-      <div className="text-sm opacity-75">{label}</div>
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  gradient,
+  to,
+}: {
+  label: string;
+  value: number;
+  icon: (p: IconProps) => JSX.Element;
+  gradient: string;
+  to?: string;
+}) {
+  const card = (
+    <div className="group relative overflow-hidden rounded-2xl border border-[#e6e8f5] bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg dark:border-white/10 dark:bg-[#131313]">
+      <div className={`pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${gradient} opacity-10 transition-transform duration-200 group-hover:scale-125`} />
+      <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-md`}>
+        <Icon />
+      </div>
+      <div className="mt-4 text-2xl font-bold leading-none text-[#0c1d31] dark:text-white">{value}</div>
+      <div className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-[#525f6d] dark:text-white/50">
+        {label}
+      </div>
     </div>
   );
+  return to ? <Link to={to}>{card}</Link> : card;
 }

@@ -8,7 +8,6 @@ interface ServiceFormProps {
     input_desc: string;
     output_desc: string;
     controleur: string;
-    modifie_bdd: boolean;
     collection?: Record<string, unknown> | null;
   };
   onSubmit: (data: {
@@ -18,7 +17,6 @@ interface ServiceFormProps {
     input_desc?: string;
     output_desc?: string;
     controleur?: string;
-    modifie_bdd?: boolean;
     collection?: Record<string, unknown> | null;
   }) => Promise<void>;
   onCancel: () => void;
@@ -74,7 +72,6 @@ export function ServiceForm({ initialData, onSubmit, onCancel }: ServiceFormProp
         input_desc: inputDesc || undefined,
         output_desc: outputDesc || undefined,
         controleur: controleur || undefined,
-        modifie_bdd: true,
         collection: collection ?? undefined,
       });
     } finally {

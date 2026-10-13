@@ -23,6 +23,10 @@ export const etapesApi = {
   // Où l'étape est utilisée, pour dimensionner la suppression avant de la confirmer.
   impact: (id: number) => api.get<EtapeImpact>(`/api/etapes/${id}/impact`),
 
+  // Document Word de l'étape (masques, fonctionnalités, services), généré
+  // côté serveur. Récupéré en binaire car la route n'est pas du JSON.
+  exportDocx: (id: number) => api.getBlob(`/api/etapes/${id}/export`),
+
   // Retire un masque de cette étape sans supprimer le masque lui-même.
   detachMasque: (etapeId: number, masqueId: number) =>
     api.delete<{ message: string }>(`/api/etapes/${etapeId}/masques/${masqueId}`),

@@ -66,7 +66,7 @@ m = Masque(code="CE9000", nom="Écran test")
 db.add(m); db.commit(); db.refresh(m)
 
 s1 = Service(nom="GET /api/recherche", input_desc="motclé", output_desc="liste",
-             controleur="RechercheController", modifie_bdd=False)
+             controleur="RechercheController")
 s2 = Service(nom="POST /api/recherche/avancee")
 s3 = Service(nom="GET /api/resultats")
 db.add_all([s1, s2, s3]); db.commit()

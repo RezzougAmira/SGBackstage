@@ -139,12 +139,12 @@ def seed():
         # SERVICES
         # ======================
         services = [
-            Service(nom="CustomerService", methode_http="GET", url="/api/customers", input_desc="ID client", output_desc="Informations client", controleur="CustomerController", modifie_bdd=True),
-            Service(nom="AccountService", methode_http="POST", url="/api/accounts", input_desc="Données compte", output_desc="Compte créé", controleur="AccountController", modifie_bdd=True),
-            Service(nom="TransferService", methode_http="POST", url="/api/transfers", input_desc="Données transfert", output_desc="Transfert effectué", controleur="TransferController", modifie_bdd=True),
-            Service(nom="ValidationService", methode_http="POST", url="/api/validate", input_desc="Données à valider", output_desc="Résultat validation", controleur="ValidationController", modifie_bdd=False),
-            Service(nom="CardService", methode_http="POST", url="/api/cards", input_desc="Données carte", output_desc="Carte émise", controleur="CardController", modifie_bdd=True),
-            Service(nom="LoanService", methode_http="POST", url="/api/loans", input_desc="Demande prêt", output_desc="Prêt accordé", controleur="LoanController", modifie_bdd=True),
+            Service(nom="CustomerService", methode_http="GET", url="/api/customers", input_desc="ID client", output_desc="Informations client", controleur="CustomerController"),
+            Service(nom="AccountService", methode_http="POST", url="/api/accounts", input_desc="Données compte", output_desc="Compte créé", controleur="AccountController"),
+            Service(nom="TransferService", methode_http="POST", url="/api/transfers", input_desc="Données transfert", output_desc="Transfert effectué", controleur="TransferController"),
+            Service(nom="ValidationService", methode_http="POST", url="/api/validate", input_desc="Données à valider", output_desc="Résultat validation", controleur="ValidationController"),
+            Service(nom="CardService", methode_http="POST", url="/api/cards", input_desc="Données carte", output_desc="Carte émise", controleur="CardController"),
+            Service(nom="LoanService", methode_http="POST", url="/api/loans", input_desc="Demande prêt", output_desc="Prêt accordé", controleur="LoanController"),
         ]
         db.add_all(services)
         db.commit()

@@ -45,6 +45,7 @@ export function ProcessDetailPage() {
   const [analyseImpact, setAnalyseImpact] = useState(false);
   const [showDiagram, setShowDiagram] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const toastTimer = useRef<number>();
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
@@ -70,6 +71,35 @@ export function ProcessDetailPage() {
   const showToast = (message: string) => {
     setToast(message);
     toastTimer.current = window.setTimeout(() => setToast(null), 3000);
+  };
+
+  // Document Word du process (toutes ses étapes), assemblé côté serveur comme
+  // celui d'une étape : on récupère le binaire puis on déclenche le téléchargement.
+  const handleExportDocx = async () => {
+    if (!id) return;
+    setExporting(true);
+    try {
+      const blob = await processesApi.exportDocx(parseInt(id));
+      const url = URL.createObjectURL(blob);
+      const nom = (processState?.nom || "process")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .toLowerCase();
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = `process-${nom || "export"}.docx`;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      URL.revokeObjectURL(url);
+      showToast("Document Word du process généré.");
+    } catch (error) {
+      console.error("Erreur:", error);
+      showToast("Export impossible.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleCreateEtape = async (data: { nom: string; description?: string; ordre: number }) => {
@@ -174,15 +204,34 @@ export function ProcessDetailPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex h-[46px] shrink-0 items-center gap-2 rounded-xl bg-[#003049] px-5 py-3 font-poppins text-sm font-semibold text-white hover:bg-[#00263a]"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-            <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-          </svg>
-          Nouvelle étape
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExportDocx}
+            disabled={exporting}
+            className="flex h-[46px] items-center gap-2 rounded-xl border border-[#003049] px-5 font-poppins text-sm font-semibold text-[#003049] transition hover:bg-[#e6e8f5] disabled:opacity-50 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
+          >
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {exporting ? "Export..." : "Exporter process"}
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex h-[46px] shrink-0 items-center gap-2 rounded-xl bg-[#003049] px-5 py-3 font-poppins text-sm font-semibold text-white hover:bg-[#00263a]"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+            </svg>
+            Nouvelle étape
+          </button>
+        </div>
       </div>
 
       {/* Zone schéma */}

@@ -1,6 +1,6 @@
 # SGBackstage
 
-**Plateforme web de documentation technique et de traçabilité des évolutions du système SGB**
+**Plateforme web de documentation technique du système SGB**
 
 ---
 
@@ -14,10 +14,9 @@
 6. [Fonctionnalités](#6-fonctionnalités)
 7. [Pages et interfaces](#7-pages-et-interfaces)
 8. [API REST](#8-api-rest)
-9. [Plan de développement](#9-plan-de-développement)
-10. [Installation et démarrage](#10-installation-et-démarrage)
-11. [Données de démonstration](#11-données-de-démonstration)
-12. [Perspectives](#12-perspectives)
+9. [Installation et démarrage](#9-installation-et-démarrage)
+10. [Données de démonstration](#10-données-de-démonstration)
+11. [Perspectives](#11-perspectives)
 
 ---
 
@@ -33,8 +32,6 @@ Le département Développement est organisé en **services internes**, chacun d�
 
 ### Le problème
 
-Les évolutions du SGB sont pilotées par des **demandes de changement (DC)** envoyées par les équipes métier. Le problème central est :
-
 > **Le code du SGB n'est documenté nulle part de façon fiable et exploitable.**
 
 - Les documents Word existants sont trop longs et mal structurés pour être consultés
@@ -45,20 +42,21 @@ Les évolutions du SGB sont pilotées par des **demandes de changement (DC)** en
 
 ### La solution
 
-Créer une plateforme web qui documente le code du SGB de façon dynamique et centralisée, en connectant trois couches :
+Créer une plateforme web qui documente le code du SGB de façon dynamique et centralisée, en connectant le contexte métier à la structure technique :
 
 ```
-COUCHE MÉTIER              COUCHE TECHNIQUE           COUCHE TRAÇABILITÉ
-(Domaine/Process/Étape)    (Masque/Service/Procédure)  (Demande de changement)
-        │                          │                           │
-        │         ┌────────────────┤                           │
-        │         │                │                           │
-        └─────────┴─── DC ────────┴───────────────────────────┘
+COUCHE MÉTIER          COUCHE TECHNIQUE                 TRAÇABILITÉ
+(Domaine/Process/      (Masque/Fonctionnalité/          (journal des changements
+ Étape)                 Service/Procédure/Table/         + archivages)
+         │                       │                            │
+         └───────────────┬───────┘                            │
+                         │                                    │
+                    Étape ←→ Masque                    Historique
 ```
 
 - **Couche métier** : documente le contexte (quel domaine, quel process, quelle étape)
-- **Couche technique** : documente le code (quel masque, quel service, quelle procédure, quelle table, quels attributs)
-- **Couche traçabilité** : connecte les deux via les DC, en enregistrant ce qui a été modifié, quand, par qui, et dans quel archivage
+- **Couche technique** : documente le code (quel masque, quelle fonctionnalité, quel service, quelle procédure, quelle table, quels attributs)
+- **Traçabilité** : un journal d'audit enregistre qui a créé, modifié, supprimé, rattaché ou détaché un élément, avec un instantané avant/après
 
 ---
 
@@ -67,18 +65,19 @@ COUCHE MÉTIER              COUCHE TECHNIQUE           COUCHE TRAÇABILITÉ
 ### Objectifs fonctionnels
 
 - Centraliser la documentation technique du SGB dans une application web vivante
-- Permettre une navigation à deux niveaux : par le métier et par le code
-- Tracer l'historique complet des demandes de changement
-- Rendre consultable l'impact de chaque modification sur l'ensemble du système
+- Permettre une navigation à deux niveaux : par le métier (domaines/process/étapes) et par le code (masques/services/procédures/tables)
+- Afficher pour chaque étape les masques, leurs fonctionnalités et les services qui les implémentent
+- Tracer chaque modification dans un **journal d'audit** consultable et filtrable
+- Prévenir les erreurs de suppression grâce à une **analyse d'impact** des objets partagés
 - Faciliter l'intégration de nouveaux développeurs
 - Réduire la dépendance à la mémoire individuelle des développeurs
 
 ### Objectifs techniques
 
-- Concevoir un modèle de données couvrant les trois couches (métier, technique, traçabilité)
-- Développer une API REST complète et documentée
+- Concevoir un modèle de données couvrant les deux couches (métier et technique) et le journal
+- Développer une API REST complète et documentée (Swagger auto-généré)
 - Créer une interface web intuitive et responsive
-- Implémenter un Impact Explorer comme fonctionnalité centrale
+- Implémenter une suppression raisonnée : chaque objet partagé est conservé tant qu'un autre le référence
 - Maintenir la cohérence entre le vocabulaire métier et la structure technique
 
 ---
@@ -91,7 +90,6 @@ COUCHE MÉTIER              COUCHE TECHNIQUE           COUCHE TRAÇABILITÉ
 | UI | Tailwind CSS | Style cohérent, peu de boilerplate |
 | Backend | FastAPI (Python) | API rapide, Swagger auto-généré |
 | ORM | SQLAlchemy | Standard Python, relations N:N natives |
-| Migrations | Alembic | Gestion des évolutions de schéma |
 | Validation | Pydantic | Intégré nativement à FastAPI |
 | Base de données | PostgreSQL | Robuste, compatible environnement bancaire |
 | Authentification | JWT | Simple, sans état, rapide à implémenter |
@@ -106,7 +104,7 @@ sgb-techtrace/
 ├── backend/
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── main.py                # Point d'entrée FastAPI
+│   │   ├── main.py                # Point d'entrée FastAPI (routes + patche de schéma)
 │   │   ├── config.py              # Configuration (DATABASE_URL, JWT_SECRET, etc.)
 │   │   ├── database.py            # Connexion SQLAlchemy
 │   │   ├── models/                # Modèles ORM (SQLAlchemy)
@@ -116,13 +114,14 @@ sgb-techtrace/
 │   │   │   ├── domaine.py
 │   │   │   ├── process.py
 │   │   │   ├── etape.py
-│   │   │   ├── masque.py
-│   │   │   ├── service.py
-│   │   │   ├── procedure.py
-│   │   │   ├── table.py
+│   │   │   ├── masque.py          # Masque + liaison EtapeMasque
+│   │   │   ├── service.py         # Service + liaison MasqueService
+│   │   │   ├── fonctionnalite.py  # Fonctionnalite + liaison FonctionnaliteService
+│   │   │   ├── procedure.py       # ProcedureStockee + liaison ServiceProcedure
+│   │   │   ├── table.py           # TableInfo + liaison ProcedureTable
 │   │   │   ├── attribut.py
-│   │   │   ├── dc.py
-│   │   │   └── archive.py
+│   │   │   ├── archive.py
+│   │   │   └── historique.py      # Journal d'audit
 │   │   ├── schemas/               # Pydantic schemas (validation des entrées/sorties)
 │   │   │   ├── __init__.py
 │   │   │   ├── user.py
@@ -131,94 +130,88 @@ sgb-techtrace/
 │   │   │   ├── etape.py
 │   │   │   ├── masque.py
 │   │   │   ├── service.py
+│   │   │   ├── fonctionnalite.py
 │   │   │   ├── procedure.py
 │   │   │   ├── table.py
 │   │   │   ├── attribut.py
-│   │   │   ├── dc.py
 │   │   │   └── archive.py
 │   │   ├── routers/               # Routes API
 │   │   │   ├── __init__.py
-│   │   │   ├── auth.py
+│   │   │   ├── auth.py            # Connexion, inscription, gestion utilisateurs
 │   │   │   ├── domaines.py
 │   │   │   ├── processes.py
 │   │   │   ├── etapes.py
 │   │   │   ├── masques.py
 │   │   │   ├── services.py
+│   │   │   ├── fonctionnalites.py
 │   │   │   ├── procedures.py
 │   │   │   ├── tables.py
 │   │   │   ├── attributs.py
-│   │   │   ├── dcs.py
 │   │   │   ├── archives.py
-│   │   │   └── search.py
+│   │   │   ├── historique.py
+│   │   │   ├── search.py
+│   │   │   └── upload.py          # Médias (avatars, images de masque, diagrammes)
 │   │   └── utils/
 │   │       ├── auth.py            # JWT + bcrypt
-│   │       └── deps.py            # Dependencies (get_db, get_current_user)
-│   ├── seed.py                    # Script de seed
-│   ├── requirements.txt
-│   └── alembic/                   # Migrations
-├── frontend/
-│   ├── src/
-│   │   ├── main.tsx
-│   │   ├── App.tsx                # Routeur principal
-│   │   ├── api/                   # Fonctions API
-│   │   │   ├── client.ts          # Instance fetch avec token
-│   │   │   ├── auth.ts
-│   │   │   ├── domaines.ts
-│   │   │   ├── processes.ts
-│   │   │   ├── etapes.ts
-│   │   │   ├── masques.ts
-│   │   │   ├── services.ts
-│   │   │   ├── procedures.ts
-│   │   │   ├── tables.ts
-│   │   │   ├── attributs.ts
-│   │   │   ├── dc.ts
-│   │   │   └── archives.ts
-│   │   ├── components/
-│   │   │   ├── Layout.tsx         # Sidebar + header
-│   │   │   ├── Sidebar.tsx        # Navigation arborescente
-│   │   │   ├── Breadcrumb.tsx     # Fil d'Ariane
-│   │   │   ├── ProcessSchema.tsx  # Schéma visuel auto-généré
-│   │   │   ├── ImpactExplorer.tsx # Vue arborescente de l'impact
-│   │   │   ├── Modal.tsx
-│   │   │   └── forms/
-│   │   │       ├── DomaineForm.tsx
-│   │   │       ├── ProcessForm.tsx
-│   │   │       ├── EtapeForm.tsx
-│   │   │       ├── MasqueForm.tsx
-│   │   │       ├── ServiceForm.tsx
-│   │   │       ├── ProcedureForm.tsx
-│   │   │       ├── TableForm.tsx
-│   │   │       ├── AttributForm.tsx
-│   │   │       └── DCForm.tsx
-│   │   ├── pages/
-│   │   │   ├── LoginPage.tsx
-│   │   │   ├── DashboardPage.tsx
-│   │   │   ├── DomainesPage.tsx
-│   │   │   ├── DomaineDetailPage.tsx
-│   │   │   ├── ProcessDetailPage.tsx
-│   │   │   ├── EtapeDetailPage.tsx
-│   │   │   ├── MasquesPage.tsx
-│   │   │   ├── MasqueDetailPage.tsx
-│   │   │   ├── TablesPage.tsx
-│   │   │   ├── TableDetailPage.tsx
-│   │   │   ├── DCListPage.tsx
-│   │   │   ├── DCDetailPage.tsx
-│   │   │   ├── DCCreatePage.tsx
-│   │   │   ├── ArchivesPage.tsx
-│   │   │   ├── SearchPage.tsx
-│   │   │   └── NotFoundPage.tsx
-│   │   ├── hooks/
-│   │   │   ├── useAuth.ts
-│   │   │   └── useApi.ts
-│   │   ├── types/
-│   │   │   └── index.ts
-│   │   └── utils/
-│   │       └── helpers.ts
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── tailwind.config.js
-└── README.md
+│   │       ├── deps.py            # Dependencies (get_db, get_current_user)
+│   │       ├── historique.py      # Snapshot/diff + écriture du journal
+│   │       ├── impact.py          # Analyse d'impact avant suppression
+│   │       └── storage.py         # Stockage des fichiers
+│   ├── seed.py                    # Script de seed de démonstration
+│   ├── probe_fonc.py              # Vérification isolée des fonctionnalités
+│   └── requirements.txt
+└── frontend/
+    ├── src/
+    │   ├── main.tsx
+    │   ├── App.tsx                # Routeur principal
+    │   ├── types/index.ts         # Types TypeScript partagés
+    │   ├── api/                   # Fonctions API
+    │   │   ├── client.ts          # Instance fetch avec token
+    │   │   ├── auth.ts
+    │   │   ├── domaines.ts
+    │   │   ├── processes.ts
+    │   │   ├── etapes.ts
+    │   │   ├── masques.ts
+    │   │   ├── services.ts
+    │   │   ├── fonctionnalites.ts
+    │   │   ├── procedures.ts
+    │   │   ├── tables.ts
+    │   │   ├── attributs.ts
+    │   │   ├── archives.ts
+    │   │   ├── historique.ts
+    │   │   ├── search.ts
+    │   │   └── upload.ts
+    │   ├── components/
+    │   │   ├── AppLayout.tsx      # Sidebar + header
+    │   │   ├── Breadcrumb.tsx     # Fil d'Ariane
+    │   │   ├── ConfirmModal.tsx   # Modale de confirmation (avec radios)
+    │   │   ├── Modal.tsx
+    │   │   ├── ProcessSchema.tsx  # Schéma auto-généré des étapes
+    │   │   ├── EtapeDetails.tsx   # Liste des masques d'une étape
+    │   │   ├── FonctionnalitesSection.tsx  # Fonctionnalités + services d'un masque
+    │   │   ├── forms/             # DomaineForm, ProcessForm, EtapeForm,
+    │   │   │                      # MasqueForm, ServiceForm, ProcedureForm
+    │   │   └── ui/                # Skeleton, pageSkeletons
+    │   ├── pages/
+    │   │   ├── LoginPage.tsx
+    │   │   ├── DashboardPage.tsx
+    │   │   ├── DomainesPage.tsx
+    │   │   ├── DomaineDetailPage.tsx
+    │   │   ├── ProcessDetailPage.tsx
+    │   │   ├── EtapeDetailPage.tsx
+    │   │   ├── SearchPage.tsx
+    │   │   ├── HistoriquePage.tsx
+    │   │   ├── ProfilePage.tsx    # Administration des utilisateurs (admin)
+    │   │   ├── MonProfilPage.tsx
+    │   │   └── NotFoundPage.tsx
+    │   └── hooks/
+    │       ├── useAuth.tsx
+    │       ├── useApi.ts
+    │       └── useProtectedImage.ts
+    ├── package.json
+    ├── vite.config.ts
+    ├── tsconfig.json
+    └── tailwind.config.js
 ```
 
 ---
@@ -231,32 +224,33 @@ sgb-techtrace/
 
 ```
 Domaine (1) ──── (N) Process
-Process (1) ──── (N) Étape
+Process (1) ──── (N) Étape          [ordre = position dans le flux]
 ```
 
 #### Couche technique
 
 ```
-Étape (N) ←──→ Masque          [table de liaison: etape_masques]
-Masque (N) ←──→ Service        [table de liaison: masque_services]
-Service (N) ←──→ Procédure     [table de liaison: service_procedures]
-Procédure (N) ←──→ Table       [table de liaison: procedure_tables]
-Table (1) ──── (N) Attribut
+Étape        (N) ←──→ Masque      [table de liaison: etape_masques]
+Masque       (1) ──── (N) Fonctionnalité
+Fonctionnalité (N) ←──→ Service   [table de liaison: fonctionnalite_services]
+Masque       (N) ←──→ Service     [table de liaison: masque_services]
+Service      (N) ←──→ Procédure   [table de liaison: service_procedures]
+Procédure    (N) ←──→ Table       [table de liaison: procedure_tables]
+Table        (1) ──── (N) Attribut
 ```
 
-#### Couche traçabilité
+> Une **fonctionnalité** regroupe les services qui réalisent une même action
+> offerte par un masque (le bouton « Rechercher », par exemple).
+
+#### Traçabilité
 
 ```
-User (1) ──── (N) DC
-DC (N) ←──→ Masque             [table de liaison: dc_masques, portant action + details]
-DC (N) ←──→ Service            [table de liaison: dc_services]
-DC (N) ←──→ Procédure          [table de liaison: dc_procedures]
-DC (N) ←──→ Table              [table de liaison: dc_tables]
-DC (N) ←──→ Attribut           [table de liaison: dc_attributs]
-Archive (1) ──── (N) DC
+User (1) ──── (N) Historique       [actions: création, modification, suppression,
+                                    rattachement, détachement, réordonnancement]
+Archive (1)   (N) — identifiant de livraison/push (référence externe)
 ```
 
-### Tables SQL
+### Tables SQL (extrait)
 
 ```sql
 -- ============================================
@@ -275,6 +269,8 @@ CREATE TABLE processes (
     id SERIAL PRIMARY KEY,
     nom VARCHAR(255) NOT NULL,
     description TEXT,
+    diagramme_url VARCHAR,
+    diagramme_type VARCHAR,
     domaine_id INT REFERENCES domaines(id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
@@ -301,6 +297,7 @@ CREATE TABLE masques (
     code VARCHAR(50) UNIQUE NOT NULL,
     nom VARCHAR(255) NOT NULL,
     description TEXT,
+    image_key VARCHAR,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -320,7 +317,7 @@ CREATE TABLE services (
     input_desc TEXT,
     output_desc TEXT,
     controleur VARCHAR(255),
-    modifie_bdd BOOLEAN DEFAULT FALSE,
+    collection JSON,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -330,6 +327,22 @@ CREATE TABLE masque_services (
     masque_id INT REFERENCES masques(id) ON DELETE CASCADE,
     service_id INT REFERENCES services(id) ON DELETE CASCADE,
     UNIQUE(masque_id, service_id)
+);
+
+CREATE TABLE fonctionnalites (
+    id SERIAL PRIMARY KEY,
+    titre VARCHAR(255) NOT NULL,
+    description TEXT,
+    masque_id INT REFERENCES masques(id) ON DELETE CASCADE,
+    ordre INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE fonctionnalite_services (
+    id SERIAL PRIMARY KEY,
+    fonctionnalite_id INT REFERENCES fonctionnalites(id) ON DELETE CASCADE,
+    service_id INT REFERENCES services(id) ON DELETE CASCADE
 );
 
 CREATE TABLE procedures_stockees (
@@ -373,7 +386,7 @@ CREATE TABLE attributs (
 );
 
 -- ============================================
--- COUCHE TRAÇABILITÉ
+-- TRAÇABILITÉ
 -- ============================================
 
 CREATE TABLE users (
@@ -382,6 +395,8 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     role VARCHAR(50) DEFAULT 'developer',
+    avatar_key VARCHAR,
+    blocked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -391,57 +406,16 @@ CREATE TABLE archives (
     date_push TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE dcs (
+CREATE TABLE historique (
     id SERIAL PRIMARY KEY,
-    numero VARCHAR(50) UNIQUE NOT NULL,
-    titre VARCHAR(255) NOT NULL,
-    description TEXT,
-    date TIMESTAMP DEFAULT NOW(),
-    auteur_id INT REFERENCES users(id),
-    etape_id INT REFERENCES etapes(id),
-    archive_id INT REFERENCES archives(id),
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE dc_masques (
-    id SERIAL PRIMARY KEY,
-    dc_id INT REFERENCES dcs(id) ON DELETE CASCADE,
-    masque_id INT REFERENCES masques(id) ON DELETE CASCADE,
-    action VARCHAR(50) NOT NULL,
-    details TEXT
-);
-
-CREATE TABLE dc_services (
-    id SERIAL PRIMARY KEY,
-    dc_id INT REFERENCES dcs(id) ON DELETE CASCADE,
-    service_id INT REFERENCES services(id) ON DELETE CASCADE,
-    action VARCHAR(50) NOT NULL,
-    details TEXT
-);
-
-CREATE TABLE dc_procedures (
-    id SERIAL PRIMARY KEY,
-    dc_id INT REFERENCES dcs(id) ON DELETE CASCADE,
-    procedure_id INT REFERENCES procedures_stockees(id) ON DELETE CASCADE,
-    action VARCHAR(50) NOT NULL,
-    details TEXT
-);
-
-CREATE TABLE dc_tables (
-    id SERIAL PRIMARY KEY,
-    dc_id INT REFERENCES dcs(id) ON DELETE CASCADE,
-    table_id INT REFERENCES tables_info(id) ON DELETE CASCADE,
-    action VARCHAR(50) NOT NULL,
-    details TEXT
-);
-
-CREATE TABLE dc_attributs (
-    id SERIAL PRIMARY KEY,
-    dc_id INT REFERENCES dcs(id) ON DELETE CASCADE,
-    attribut_id INT REFERENCES attributs(id) ON DELETE CASCADE,
-    action VARCHAR(50) NOT NULL,
-    details TEXT
+    utilisateur_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(20) NOT NULL,
+    type_entite VARCHAR(30) NOT NULL,
+    entite_id INTEGER,
+    nom_entite VARCHAR(255),
+    avant JSONB,
+    apres JSONB,
+    created_at TIMESTAMP DEFAULT now()
 );
 ```
 
@@ -454,32 +428,45 @@ CREATE TABLE dc_attributs (
 | # | Fonctionnalité | Description |
 |---|---------------|-------------|
 | F1 | Authentification | Login email + mot de passe, JWT, session sécurisée |
-| F2 | Dashboard | Vue d'ensemble avec compteurs et activité récente |
-| F3 | Navigation métier | Arborescence dépliable Domaine → Process → Étape |
+| F2 | Dashboard | Vue d'ensemble : compteurs, activité 14 jours, top contributeurs |
+| F3 | Navigation métier | Domaine → Process → Étape → Masques |
 | F4 | Schéma de process | Flux visuel auto-généré des étapes (boîtes cliquables + flèches) |
-| F5 | Fiche masque | Détail d'un masque avec services, procédures, tables, attributs |
-| F6 | Création de DC | Formulaire par sections (contexte métier + impacts techniques) |
-| F7 | Impact Explorer | Vue arborescente de tous les éléments impactés par une DC |
-| F8 | Historique par élément | Pour tout élément, lister toutes les DC qui l'ont modifié |
-| F9 | Recherche globale | Recherche par code masque, nom service, numéro DC, etc. |
+| F5 | Fiche étape | Masques associés, avec leurs fonctionnalités, services, procédures, tables et attributs |
+| F6 | Recherche globale | Par code masque, nom service, nom table |
+| F7 | Journal d'audit | Historique filtrable/paginé de toutes les actions, avec détail avant/après |
+| F8 | Suppression raisonnée | Analyse d'impact : un objet partagé n'est effacé que s'il ne sert qu'ici |
+| F9 | Réordonnancement | Modifier l'ordre des étapes |
 
 ### Fonctionnalités avancées
 
 | # | Fonctionnalité | Description |
 |---|---------------|-------------|
-| F10 | Archivage | Rattacher une DC à un identifiant d'archivage (push de déploiement) |
-| F11 | Réordonnancement | Modifier l'ordre des étapes (boutons haut/bas ou glisser-déposer) |
-| F12 | Import initial | Charger une première liste de domaines/process si fournie par AGB |
+| F10 | Médias | Image de masque, diagramme de process, avatar utilisateur |
+| F11 | Archivage | Identifiant d'archivage d'une livraison (push de déploiement) |
+| F12 | Administration | Liste des utilisateurs, blocage/déblocage (réservé admin) |
 
 ### Cascade technique (logique métier)
 
 ```
 Masque (toujours requis)
+  ├── Fonctionnalité(s) : une action offerte (Rechercher, Exporter...)
+  │     └── Service(s) qui l'implémentent
   └── Service ? (optionnel — un masque peut n'avoir aucun service listé)
-        └── Modifie la BDD ? (case à cocher)
-              ├── OUI → Procédure stockée (requise) → Table(s) → Attribut(s)
-              └── NON → le formulaire s'arrête ici
+        └── Procédure stockée → Table(s) → Attribut(s)
 ```
+
+### Suppression raisonnée (analyse d'impact)
+
+Le référentiel est un graphe de tables de jointure : un masque peut être porté
+par plusieurs étapes, un service appelé par plusieurs masques, une procédure par
+plusieurs services. Avant toute suppression, l'API calcule l'impact :
+
+- une **étape** supprimée par défaut ne supprime pas ses masques (partage possible) ;
+- un **masque** supprimé ne supprime ses services que sur demande explicite, et
+  uniquement ceux qui ne servent qu'ici ;
+- un **service** n'emporte ses procédures que si nul autre service ne les appelle ;
+- la suppression est **refusée** si l'objet est encore utilisé ailleurs ;
+- à chaque suppression, le journal conserve un instantané « avant » de l'objet.
 
 ---
 
@@ -497,201 +484,89 @@ Masque (toujours requis)
 ┌──────────────────────────────────────────────────────────┐
 │  Tableau de bord                                         │
 │                                                          │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
-│  │ Domaines │ │ Process  │ │ Étapes   │ │ Masques  │   │
-│  │    7     │ │   18     │ │   45     │ │   120    │   │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
+│  Domaines  Processus  Étapes  Masques  Fonctionnalités  │
+│  Services  Procédures Tables  Attributs Archives Users   │
 │                                                          │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐                 │
-│  │ Services │ │ Tables   │ │ DC       │                 │
-│  │    85    │ │    60    │ │   230    │                 │
-│  └──────────┘ └──────────┘ └──────────┘                 │
+│  Activité des 14 derniers jours                          │
+│  ▄ ▄▄ █ ▄▄▄ ██ ▄█ ▄▄ ███ ...                            │
 │                                                          │
-│  Activité récente                                        │
-│  ─────────────────────────────────────────────────────── │
-│  DC-1501  Ajouter bouton export  Commerce  il y a 2h    │
-│  DC-1500  Type client            Commerce  il y a 1j    │
-│  CE2100   Modifié par DC-1500              il y a 1j    │
+│  Répartition par type d'entité    Top contributeurs      │
+│  Derniers événements du journal                         │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### Demandes de changement — Liste
+### Domaines (liste + fiche)
+
+- Cartes de domaines avec nombre de process
+- Création/modification via formulaire
+- Suppression avec confirmation du périmètre (process + étapes emportés)
+
+### Process détaillé
+
+- Schéma visuel des étapes (boîtes cliquables, flèches)
+- Liste des étapes avec leur ordre (réordonnancement)
+- Ajout/édition/suppression d'étapes
+
+### Fiche Étape
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│  Demandes de changement              [+ Nouvelle DC]    │
-│                                                          │
-│  Rechercher : [DC-1500 ou mot-clé...]                   │
-│                                                          │
-│  N°       Titre                    Date       Archive    │
-│  ─────────────────────────────────────────────────────── │
-│  DC-1501  Ajouter export PDF       15/09/26   1501      │
-│  DC-1500  Type client ouverture    14/09/26   1500      │
-│  DC-1499  Modifier seuil crédit    12/09/26   —         │
-│  DC-1498  Corriger validation      10/09/26   1500      │
-└──────────────────────────────────────────────────────────┘
+Étape : "Saisie des informations" (Ouverture de compte, étape 1)
+├── Masque CE2100 — Écran de saisie client
+│     ├── Fonctionnalité "Saisir un client"
+│     │     ├── CustomerService (GET /api/customers)
+│     │     │     └── procedures: SP_CREATE_CUSTOMER → CUSTOMER (id, nom...)
+│     │     └── ValidationService (POST /api/validate), modifie BDD = non
+│     └── Fonctionnalité "Modifier un client"
+│           └── CustomerService (PUT)
+└── ...
 ```
 
-### Création de DC — Formulaire par sections
+### Recherche globale
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  Nouvelle demande de changement                          │
-│                                                          │
-│  ── Informations générales ───────────────────────────── │
-│  Numéro :    [DC-1502          ]                         │
-│  Titre :     [Ajouter export PDF]                        │
-│  Description:[Ajouter un bouton d'export PDF sur l'écran]│
-│                                                          │
-│  ── Contexte métier ──────────────────────────────────── │
-│  Domaine  :  [ Commerce        ▼]                        │
-│  Processus:  [ Ouverture de compte ▼]                    │
-│  Étape    :  [ Saisie des informations ▼]                │
-│                                                          │
-│  ── Masques impactés ─────────────────────────────────── │
-│  ┌─────────────────────────────────────────────────┐     │
-│  │ [✓] CE2100 — Écran saisie client  Action: Modifié│    │
-│  │     Détails: [Ajout bouton export en haut]      │     │
-│  │ [+ Ajouter un masque]                           │     │
-│  └─────────────────────────────────────────────────┘     │
-│                                                          │
-│  ── Services impactés ────────────────────────────────── │
-│  ┌─────────────────────────────────────────────────┐     │
-│  │ [✓] ExportService  Action: Ajouté               │     │
-│  │     Détails: [Nouveau service d'export PDF]     │     │
-│  │ [+ Ajouter un service]                          │     │
-│  └─────────────────────────────────────────────────┘     │
-│                                                          │
-│  ── Procédures stockées ──────────────────────────────── │
-│  ┌─────────────────────────────────────────────────┐     │
-│  │ [✓] SP_EXPORT_PDF  Action: Ajoutée              │     │
-│  │     Détails: [Génère le PDF des données client] │     │
-│  │ [+ Ajouter une procédure]                       │     │
-│  └─────────────────────────────────────────────────┘     │
-│                                                          │
-│  ── Tables impactées ─────────────────────────────────── │
-│  ┌─────────────────────────────────────────────────┐     │
-│  │ [✓] EXPORT_LOG  Action: Ajoutée                 │     │
-│  │     Détails: [Journal des exports réalisés]     │     │
-│  │ [+ Ajouter une table]                           │     │
-│  └─────────────────────────────────────────────────┘     │
-│                                                          │
-│  ── Attributs impactés ───────────────────────────────── │
-│  ┌─────────────────────────────────────────────────┐     │
-│  │ Table: EXPORT_LOG                                │     │
-│  │ [✓] EXPORT_DATE  Type: date   Action: Ajouté   │     │
-│  │ [✓] EXPORT_USER  Type: texte  Action: Ajouté   │     │
-│  │ [+ Ajouter un attribut]                         │     │
-│  └─────────────────────────────────────────────────┘     │
-│                                                          │
-│  Archivage : [1502 ▼]  (optionnel, rempli après push)   │
-│                                                          │
-│              [Annuler]  [Enregistrer la DC]              │
-└──────────────────────────────────────────────────────────┘
-```
+- Champ de recherche unique (masques, services, tables)
+- Résultats groupés par type d'entité
 
-### Détail DC + Impact Explorer
+### Journal d'audit (Historique)
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  DC-1500 — Ajouter le type de client                     │
-│                                                          │
-│  Date : 14/09/26   Auteur : Jean Dupont   Archive : 1500│
-│  Description : Ajout du champ CUSTOMER_TYPE pour         │
-│  distinguer particulier / entreprise                     │
-│                                                          │
-│  ── Contexte métier ──────────────────────────────────── │
-│  Commerce → Ouverture de compte → Saisie informations    │
-│                                                          │
-│  ── Impact technique (arborescence) ──────────────────── │
-│                                                          │
-│  CE2100 (Modifié)                                        │
-│    └── CustomerService (Modifié)                         │
-│          └── SP_CREATE_CUSTOMER (Modifiée)               │
-│                └── CUSTOMER (Modifiée)                   │
-│                      └── CUSTOMER_TYPE (Ajouté)          │
-│                                                          │
-│  ── Liste plate ──────────────────────────────────────── │
-│                                                          │
-│  Élément                Type        Action     Détails   │
-│  ─────────────────────────────────────────────────────── │
-│  CE2100                 Masque      Modifié    [voir]    │
-│  CustomerService        Service     Modifié    [voir]    │
-│  SP_CREATE_CUSTOMER     Procédure   Modifiée   [voir]    │
-│  CUSTOMER               Table       Modifiée   [voir]    │
-│  CUSTOMER_TYPE          Attribut    Ajouté     [voir]    │
-│                                                          │
-│              [Modifier]  [Archiver]                      │
-└──────────────────────────────────────────────────────────┘
-```
+- Ligne du temps des événements (création, modification, suppression, rattachement, détachement, réordonnancement)
+- Filtres par type d'entité, action, utilisateur et période
+- Pagination, détail « avant »/« après » des modifications
 
-### Fiche Masque (clic sur CE2100)
+### Administration (Utilisateurs)
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  CE2100 — Écran de saisie client                         │
-│                                                          │
-│  Contexte métier                                         │
-│    Commerce → Ouverture de compte → Saisie informations  │
-│    Commerce → Modification client → Mise à jour          │
-│                                                          │
-│  Services utilisés                                       │
-│    → CustomerService (GET, POST)                         │
-│    → ValidationService (POST)                            │
-│                                                          │
-│  Historique des modifications                            │
-│  ─────────────────────────────────────────────────────── │
-│  DC-1500  Type client           14/09/26  [voir]         │
-│  DC-1432  Ajouter bouton export 01/09/26  [voir]         │
-│  DC-1278  Modifier validation   15/08/26  [voir]         │
-└──────────────────────────────────────────────────────────┘
-```
-
-### Sidebar
-
-```
-┌────────────────────────────┐
-│ SGBackstage              │
-│                            │
-│  ● Dashboard               │
-│                            │
-│  ● Demandes de changement  │
-│                            │
-│  ● Métiers                 │
-│     ├ Commerce             │
-│     │  ├ Ouverture compte  │
-│     │  └ Modification      │
-│     ├ Crédit               │
-│     └ ...                  │
-│                            │
-│  ● Historique              │
-│                            │
-│  ● Recherche               │
-└────────────────────────────┘
-```
+- Liste des comptes, création d'utilisateur
+- Blocage/déblocage d'un compte (réservé au rôle admin)
 
 ---
 
 ## 8. API REST
 
+Toutes les routes sont préfixées par `/api` et la majorité exigent un JWT
+(header `Authorization: Bearer <token>`).
+
 ### Authentification
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| POST | `/api/auth/login` | Connexion, retourne JWT |
+| POST | `/api/auth/login` | Connexion, retourne le JWT |
 | POST | `/api/auth/register` | Inscription |
+| GET | `/api/auth/me` | Profil de l'utilisateur connecté |
+| GET | `/api/auth/users` | Liste des utilisateurs (admin) |
+| POST | `/api/auth/users` | Créer un utilisateur (admin) |
+| POST | `/api/auth/users/{id}/block` | Bloquer un utilisateur (admin) |
+| POST | `/api/auth/users/{id}/unblock` | Débloquer un utilisateur (admin) |
 
 ### Domaines
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| GET | `/api/domaines` | Liste des domaines (avec compteur de process) |
+| GET | `/api/domaines` | Liste des domaines |
 | GET | `/api/domaines/{id}` | Détail d'un domaine + ses process |
 | POST | `/api/domaines` | Créer un domaine |
 | PUT | `/api/domaines/{id}` | Modifier un domaine |
 | DELETE | `/api/domaines/{id}` | Supprimer un domaine |
 
-### Processes
+### Processus
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
@@ -705,22 +580,25 @@ Masque (toujours requis)
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| GET | `/api/processes/{process_id}/etapes` | Étapes d'un process (triées par ordre) |
-| GET | `/api/etapes/{id}` | Détail d'une étape + masques associés |
+| GET | `/api/processes/{process_id}/etapes` | Étapes d'un process (par ordre) |
+| GET | `/api/etapes/{id}` | Détail d'une étape + masques |
+| GET | `/api/etapes/{id}/impact` | Analyse d'impact avant suppression |
 | POST | `/api/processes/{process_id}/etapes` | Créer une étape |
 | PUT | `/api/etapes/{id}` | Modifier une étape |
-| DELETE | `/api/etapes/{id}` | Supprimer une étape |
-| PUT | `/api/etapes/{id}/reorder` | Réordonner les étapes |
+| PUT | `/api/etapes/reorder` | Réordonner les étapes |
+| DELETE | `/api/etapes/{id}` | Supprimer une étape (avec ou sans masques) |
 
 ### Masques
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| GET | `/api/masques` | Liste (avec recherche par code ?search=CE2100) |
-| GET | `/api/masques/{id}` | Détail + services + historique DC |
+| GET | `/api/masques?search=` | Liste des masques |
+| GET | `/api/masques/{id}` | Détail d'un masque |
+| GET | `/api/masques/{id}/impact` | Analyse d'impact avant suppression |
 | POST | `/api/masques` | Créer un masque |
+| POST | `/api/etapes/{etape_id}/masques` | Créer un masque + le rattacher à une étape |
 | PUT | `/api/masques/{id}` | Modifier un masque |
-| DELETE | `/api/masques/{id}` | Supprimer un masque |
+| DELETE | `/api/masques/{id}` | Supprimer un masque (avec ou sans services) |
 
 ### Services
 
@@ -731,6 +609,22 @@ Masque (toujours requis)
 | POST | `/api/services` | Créer un service |
 | PUT | `/api/services/{id}` | Modifier un service |
 | DELETE | `/api/services/{id}` | Supprimer un service |
+| POST | `/api/services/{id}/assign-masque/{masque_id}` | Rattacher à un masque |
+| GET | `/api/services/{id}/procedures` | Procédures d'un service |
+| POST | `/api/services/{id}/procedures` | Créer une procédure + la rattacher |
+| POST | `/api/services/{id}/procedures/{procedure_id}` | Rattacher une procédure existante |
+| DELETE | `/api/services/{id}/procedures/{procedure_id}` | Détacher (sans supprimer) |
+
+### Fonctionnalités
+
+| Méthode | Endpoint | Description |
+|---------|----------|-------------|
+| GET | `/api/fonctionnalites/masque/{masque_id}` | Fonctionnalités d'un masque |
+| GET | `/api/fonctionnalites/{id}` | Détail + services |
+| POST | `/api/fonctionnalites/masque/{masque_id}` | Créer une fonctionnalité |
+| DELETE | `/api/fonctionnalites/{id}` | Supprimer (conserve services/procédures) |
+| POST | `/api/fonctionnalites/{id}/services/{service_id}` | Rattacher un service |
+| DELETE | `/api/fonctionnalites/{id}/services/{service_id}` | Détacher un service |
 
 ### Procédures stockées
 
@@ -747,7 +641,7 @@ Masque (toujours requis)
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
 | GET | `/api/tables` | Liste |
-| GET | `/api/tables/{id}` | Détail + attributs + historique DC |
+| GET | `/api/tables/{id}` | Détail + attributs |
 | POST | `/api/tables` | Créer une table |
 | PUT | `/api/tables/{id}` | Modifier une table |
 | DELETE | `/api/tables/{id}` | Supprimer une table |
@@ -761,55 +655,30 @@ Masque (toujours requis)
 | PUT | `/api/attributs/{id}` | Modifier un attribut |
 | DELETE | `/api/attributs/{id}` | Supprimer un attribut |
 
-### Demandes de changement
-
-| Méthode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | `/api/dcs` | Liste des DC |
-| GET | `/api/dcs/{id}` | Détail DC + Impact Explorer |
-| POST | `/api/dcs` | Créer une DC avec impacts |
-| PUT | `/api/dcs/{id}` | Modifier une DC |
-| DELETE | `/api/dcs/{id}` | Supprimer une DC |
-| POST | `/api/dcs/{id}/archive` | Archiver une DC |
-
-### Archives
+### Archives, Recherche, Statistiques, Journal
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
 | GET | `/api/archives` | Liste des archivages |
-| GET | `/api/archives/{id}` | Détail d'un archivage + DC incluses |
+| GET | `/api/archives/{id}` | Détail d'un archivage |
+| POST | `/api/archives` | Créer un identifiant d'archivage |
+| GET | `/api/search?q=` | Recherche globale (masques, services, tables) |
+| GET | `/api/stats` | Compteurs pour le tableau de bord |
+| GET | `/api/historique` | Journal d'audit (filtres + pagination) |
 
-### Recherche
-
-| Méthode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | `/api/search?q=...` | Recherche globale (masques, services, tables, DC) |
-
-### Statistiques
+### Médias
 
 | Méthode | Endpoint | Description |
 |---------|----------|-------------|
-| GET | `/api/stats` | Compteurs pour le dashboard |
+| POST | `/api/upload` | Upload d'un fichier (image/avatar/diagramme) |
+| GET | `/api/upload/{key}` | Récupérer un fichier |
+| DELETE | `/api/upload/` | Supprimer un fichier |
+
+> La documentation interactive est disponible sur `/docs` (Swagger UI).
 
 ---
 
-## 9. Plan de développement
-
-| Semaine | Jours | Tâches |
-|---------|-------|--------|
-| **S1** | J1-J2 | Setup projet, schema complet, configuration FastAPI + PostgreSQL |
-| **S1** | J3-J5 | Backend : auth JWT + tous les endpoints CRUD |
-| **S2** | J6-J7 | Frontend : Layout + Sidebar + Login + Dashboard |
-| **S2** | J8-J10 | Pages métier : Domaines, Process (avec schéma auto-généré), Étapes |
-| **S3** | J11-J12 | Pages technique : Masques, Services, Tables, Attributs |
-| **S3** | J13-J15 | DC : création avec formulaire par sections + Impact Explorer |
-| **S4** | J16-J17 | Historique par élément + recherche globale |
-| **S4** | J18-J19 | Seed réaliste + polish UI + responsive |
-| **S4** | J20 | Préparation soutenance + démo |
-
----
-
-## 10. Installation et démarrage
+## 9. Installation et démarrage
 
 ### Prérequis
 
@@ -838,10 +707,10 @@ pip install -r requirements.txt
 # JWT_SECRET=votre_cle_secrete
 # JWT_ALGORITHM=HS256
 
-# Créer les tables
-alembic upgrade head
+# Créer les tables et appliquer les patches de schéma
+python -c "from app.main import app"
 
-# Peupler les données de démo
+# (Optionnel) Peupler les données de démo
 python seed.py
 
 # Lancer le serveur
@@ -867,66 +736,68 @@ L'application est disponible sur `http://localhost:5173`
 
 ---
 
-## 11. Données de démonstration
+## 10. Données de démonstration
 
-Le script `seed.py` peuple la base avec des données fictives mais réalistes pour la démonstration.
+Le script `seed.py` peuple la base avec des données fictives mais réalistes pour
+la démonstration. Si la base contient déjà des données, le seed est annulé.
 
 ### Domaines de démo
 
 | Domaine | Description |
 |---------|-------------|
-| Commerce | Gestion des opérations commerciales |
-| Crédit | Gestion des crédits et prêts |
-| Monétique | Opérations de carte bancaire |
-| Clientèle | Gestion des informations clients |
-| Compensation | Opérations de compensation interbancaire |
+| Commerce extérieur | Opérations et échanges relatifs au commerce extérieur |
+| Télécompense | Télécompensation et échanges interbancaires |
+| Monétique | Cartes bancaires et paiement électronique |
+| CRM | Gestion de la relation client |
+| BI | Business Intelligence et reporting |
+| Crédits | Cycle de vie des crédits et échéanciers |
 
 ### Processus de démo (exemple Commerce)
 
 | Processus | Étapes |
 |-----------|--------|
-| Ouverture de compte | 1. Saisie des informations → 2. Vérification identité → 3. Validation → 4. Confirmation |
-| Modification client | 1. Consultation → 2. Modification → 3. Validation |
-| Clôture de compte | 1. Demande → 2. Vérification soldes → 3. Clôture → 4. Confirmation |
+| Ouverture de compte | 1. Saisie → 2. Vérification identité → 3. Validation → 4. Confirmation |
+| Modification client | 1. Consultation → 2. Modification → 3. Validation modification |
+| Clôture de compte | 1. Demande → 2. Vérification soldes → 3. Clôture |
 
 ### Attribution de démo
 
 | Masque | Services | Procédures | Tables |
 |--------|----------|------------|--------|
-| CE2100 | CustomerService, ValidationService | SP_CREATE_CUSTOMER | CUSTOMER, ACCOUNT |
-| CE2200 | AccountService | SP_CREATE_ACCOUNT | ACCOUNT, ACCOUNT_TYPE |
+| CE2100 | CustomerService, ValidationService | SP_CREATE_CUSTOMER, SP_UPDATE_CUSTOMER | CUSTOMER |
+| CE2200 | AccountService | SP_CREATE_ACCOUNT | ACCOUNT |
 | CE2300 | TransferService | SP_EXECUTE_TRANSFER | TRANSFER, ACCOUNT |
 
 ---
 
-## 12. Perspectives
+## 11. Perspectives
 
-### Court terme (fin de stage)
+### Court terme
 
-- Compléter toutes les pages CRUD
-- Optimiser l'Impact Explorer
-- Améliorer la recherche globale
+- Compléter les pages CRUD restantes
+- Améliorer la recherche globale (filtres, surlignage)
+- Optimiser l'analyse d'impact (arbres de dépendances visuels)
 - Préparer la démo de soutenance
 
 ### Moyen terme
 
 - Import/export de données
-- Statistiques avancées (nombre de DC par domaine, tendances)
+- Statistiques avancées (activité par domaine, tendances)
 - Intégration à l'Active Directory pour l'authentification
 - Notification des modifications en temps réel
 
 ### Long terme
 
-- Assistant IA pour suggerer le contexte métier et les éléments techniques à partir d'une description de DC
+- Assistant IA pour suggérer les éléments techniques à documenter
 - Migration vers .NET si maintenance par l'équipe existante
-- Intégration avec les outils de CI/CD pour tracer les déploiements
+- Intégration avec les outils de CI/CD pour tracer les livraisons
 
 ---
 
 ## Équipe
 
 - **Développeur** : REZZOUG AMIRA
-- **Encadrant** : 
+- **Encadrant** :
 - **Période** : 13 SEP - 13 OCT
 - **Entreprise** : AGB — Département Développement
 

@@ -1,14 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import re
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
 from ..models.etape import Etape
 from ..models.masque import EtapeMasque
+from ..models.process import Process
 from ..models.user import User
 from ..utils import impact
 from ..utils.deps import get_current_user
 from ..utils.historique import enregistrer_historique, snapshot
+from ..utils.export_docx import build_etape_document, build_process_document
 from ..schemas.etape import (
     EtapeCreate,
     EtapeResponse,
@@ -329,6 +334,68 @@ def get_etape_standalone(etape_id: int, db: Session = Depends(get_db)):
     if not etape:
         raise HTTPException(status_code=404, detail="Étape non trouvée")
     return _build_detail(etape)
+
+
+DOCX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
+
+
+def _slug_fichier(texte: str) -> str:
+    """Nom de fichier sûr : minuscules, sans accent ni caractère interdit."""
+    sans_accent = (
+        texte.replace("é", "e").replace("è", "e").replace("ê", "e")
+        .replace("à", "a").replace("â", "a").replace("î", "i")
+        .replace("ï", "i").replace("ô", "o").replace("û", "u")
+        .replace("ù", "u").replace("ç", "c").replace("œ", "oe")
+    )
+    return re.sub(r"[^a-zA-Z0-9]+", "-", sans_accent).strip("-").lower() or "etape"
+
+
+@etapes_standalone_router.get("/etapes/{etape_id}/export")
+def export_etape_docx(etape_id: int, db: Session = Depends(get_db)):
+    """Génère le document Word de l'étape (masques, fonctionnalités, services).
+
+    La génération est faite côté serveur : le backend lit les captures du
+    bucket privé directement, sans repasser par le navigateur.
+    """
+    etape = db.query(Etape).filter(Etape.id == etape_id).first()
+    if not etape:
+        raise HTTPException(status_code=404, detail="Étape non trouvée")
+
+    contenu = build_etape_document(db, etape)
+    nom_fichier = f"etape-{etape.ordre:02d}-{_slug_fichier(etape.nom)}.docx"
+    return Response(
+        content=contenu,
+        media_type=DOCX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"{nom_fichier}\"; "
+                f"filename*=UTF-8''{quote(nom_fichier)}"
+            )
+        },
+    )
+
+
+@etapes_standalone_router.get("/processes/{process_id}/export")
+def export_process_docx(process_id: int, db: Session = Depends(get_db)):
+    """Génère le document Word du process regroupant toutes ses étapes."""
+    process = db.query(Process).filter(Process.id == process_id).first()
+    if not process:
+        raise HTTPException(status_code=404, detail="Process non trouvé")
+
+    contenu = build_process_document(db, process)
+    nom_fichier = f"process-{_slug_fichier(process.nom)}.docx"
+    return Response(
+        content=contenu,
+        media_type=DOCX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"{nom_fichier}\"; "
+                f"filename*=UTF-8''{quote(nom_fichier)}"
+            )
+        },
+    )
 
 
 @etapes_standalone_router.delete(

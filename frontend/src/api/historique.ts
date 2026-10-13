@@ -12,6 +12,7 @@ export const historiqueApi = {
       params.set('utilisateur_id', String(filters.utilisateur_id));
     if (filters.depuis) params.set('depuis', filters.depuis);
     if (filters.jusqua) params.set('jusqua', filters.jusqua);
+    if (filters.search) params.set('search', filters.search);
     params.set('page', String(filters.page ?? 1));
     params.set('par_page', String(filters.par_page ?? 50));
     return api.get<HistoriqueResponse>(`/api/historique/?${params.toString()}`);

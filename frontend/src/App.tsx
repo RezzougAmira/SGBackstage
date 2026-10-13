@@ -1,3 +1,6 @@
+import { MasquesPage } from './pages/MasquesPage';
+import { ServicesPage } from './pages/ServicesPage';
+import { ProceduresPage } from './pages/ProceduresPage';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { AppLayout } from './components/AppLayout';
@@ -72,12 +75,11 @@ function AppRoutes() {
         <Route path="/processes/:id" element={<ProcessDetailPage />} />
         <Route path="/etapes/:id" element={<EtapeDetailPage />} />
         <Route path="/search" element={<SearchPage />} />
-        <Route path="/masques" element={<NotFoundPage />} />
-        <Route path="/services" element={<NotFoundPage />} />
-        <Route path="/procedures" element={<NotFoundPage />} />
+        <Route path="/masques" element={<MasquesPage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/procedures" element={<ProceduresPage />} />
         <Route path="/tables" element={<NotFoundPage />} />
         <Route path="/tables/:id" element={<NotFoundPage />} />
-        <Route path="/archives" element={<NotFoundPage />} />
         <Route path="/profil" element={<MonProfilPage />} />
         <Route
           path="/administration"
@@ -87,8 +89,6 @@ function AppRoutes() {
             </RequireAdmin>
           }
         />
-        <Route path="/processus" element={<NotFoundPage />} />
-        <Route path="/etapes" element={<NotFoundPage />} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

@@ -27,16 +27,6 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "Processus",
-    to: "/processus",
-    paths: ["M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"],
-  },
-  {
-    label: "Etapes",
-    to: "/etapes",
-    paths: ["M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z"],
-  },
-  {
     label: "Masques",
     to: "/masques",
     paths: [
@@ -60,13 +50,6 @@ const NAV_ITEMS: NavItem[] = [
     to: "/historique",
     paths: [
       "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z",
-    ],
-  },
-  {
-    label: "Archives",
-    to: "/archives",
-    paths: [
-      "M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z",
     ],
   },
   ];
@@ -164,7 +147,7 @@ export function AppLayout() {
         </nav>
 
         {/* Profile — clic sur la photo ou le nom pour ouvrir le panneau */}
-        <div className="mb-7 mt-3 flex items-center gap-3 py-3">
+        <div className="mb-7 mt-16 flex items-center gap-3 py-3">
           <button
             type="button"
             onClick={() => navigate("/profil")}

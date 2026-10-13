@@ -46,6 +46,7 @@ export function DomaineDetailPage() {
   const [processEnEdition, setProcessEnEdition] = useState<Process | null>(null);
   const [processToDelete, setProcessToDelete] = useState<Process | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const toastTimer = useRef<number>();
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
@@ -99,6 +100,35 @@ export function DomaineDetailPage() {
     showToast(`Process "${processToDelete.nom}" supprimé.`);
   };
 
+  // Document Word du domaine (tous ses processes avec leurs étapes), assemblé
+  // côté serveur : on récupère le binaire puis on déclenche le téléchargement.
+  const handleExportDocx = async () => {
+    if (!domaine) return;
+    setExporting(true);
+    try {
+      const blob = await domainesApi.exportDocx(domaine.id);
+      const url = URL.createObjectURL(blob);
+      const slug = domaine.nom
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .toLowerCase();
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = `domaine-${slug || "export"}.docx`;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      URL.revokeObjectURL(url);
+      showToast("Document Word du domaine généré.");
+    } catch (error) {
+      console.error("Erreur:", error);
+      showToast("Export impossible.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return <DomaineDetailSkeleton />;
   }
@@ -123,13 +153,26 @@ export function DomaineDetailPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex h-[46px] shrink-0 items-center gap-2 rounded-xl bg-[#003049] px-5 py-3 font-poppins text-sm font-semibold text-white hover:bg-[#00263a]"
-        >
-          <PlusIcon />
-          Nouveau process
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExportDocx}
+            disabled={exporting}
+            className="flex h-[46px] items-center gap-2 rounded-xl border border-[#003049] px-5 font-poppins text-sm font-semibold text-[#003049] transition hover:bg-[#e6e8f5] disabled:opacity-50 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {exporting ? "Export..." : "Exporter domaine"}
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex h-[46px] shrink-0 items-center gap-2 rounded-xl bg-[#003049] px-5 py-3 font-poppins text-sm font-semibold text-white hover:bg-[#00263a]"
+          >
+            <PlusIcon />
+            Nouveau process
+          </button>
+        </div>
       </div>
 
       {/* Liste des processus */}

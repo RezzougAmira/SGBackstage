@@ -28,6 +28,7 @@ export function EtapeDetailPage() {
   const [supprimerServices, setSupprimerServices] = useState(false);
   const [analyseImpact, setAnalyseImpact] = useState(false);
   const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number>();
 
@@ -52,6 +53,30 @@ export function EtapeDetailPage() {
   const showToast = (message: string) => {
     setToast(message);
     toastTimer.current = window.setTimeout(() => setToast(null), 3000);
+  };
+
+  // Le document est assemblé côté serveur : on récupère le binaire puis on
+  // déclenche le téléchargement via une URL d'objet temporaire.
+  const handleExportDocx = async () => {
+    if (!etape) return;
+    setExporting(true);
+    try {
+      const blob = await etapesApi.exportDocx(etape.id);
+      const url = URL.createObjectURL(blob);
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = `etape-${String(etape.ordre).padStart(2, "0")}-${etape.nom}.docx`;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      URL.revokeObjectURL(url);
+      showToast("Document Word généré.");
+    } catch (error) {
+      console.error("Erreur:", error);
+      showToast("Export impossible.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleCreateMasque = async (data: MasqueFormData) => {
@@ -190,22 +215,42 @@ export function EtapeDetailPage() {
           />
         </label>
 
-        <button
-          type="button"
-          onClick={() => setShowMasqueForm(true)}
-          className="flex h-[46px] shrink-0 items-center gap-2 rounded-xl bg-[#003049] px-5 font-poppins text-sm font-semibold text-white transition hover:bg-[#00263a]"
-        >
-          <svg
-            className="h-4 w-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleExportDocx}
+            disabled={exporting}
+            className="flex h-[46px] items-center gap-2 rounded-xl border border-[#003049] px-5 font-poppins text-sm font-semibold text-[#003049] transition hover:bg-[#e6e8f5] disabled:opacity-50 dark:border-white/20 dark:text-white dark:hover:bg-white/10"
           >
-            <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-          </svg>
-          Ajouter un masque
-        </button>
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {exporting ? "Export..." : "Exporter l'étape"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowMasqueForm(true)}
+            className="flex h-[46px] items-center gap-2 rounded-xl bg-[#003049] px-5 font-poppins text-sm font-semibold text-white transition hover:bg-[#00263a]"
+          >
+            <svg
+              className="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+            </svg>
+            Ajouter un masque
+          </button>
+        </div>
       </div>
 
       <div className="mt-20 rounded-2xl bg-white p-6 shadow-sm dark:bg-[#131313]">

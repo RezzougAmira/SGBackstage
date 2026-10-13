@@ -31,7 +31,6 @@ class ServiceRef(BaseModel):
     input_desc: Optional[str] = None
     output_desc: Optional[str] = None
     controleur: Optional[str] = None
-    modifie_bdd: Optional[bool] = None
     collection: Optional[dict] = None
     procedures: List[ProcedureRef] = []
 

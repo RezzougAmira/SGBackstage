@@ -18,4 +18,9 @@ export const domainesApi = {
   // Process d'un domaine
   listProcesses: (domaineId: number) =>
     api.get<Process[]>(`/api/domaines/${domaineId}/processes`),
+
+  // Document Word du domaine (tous ses processus avec leurs étapes),
+  // généré côté serveur.
+  exportDocx: (domaineId: number) =>
+    api.getBlob(`/api/domaines/${domaineId}/export`),
 };

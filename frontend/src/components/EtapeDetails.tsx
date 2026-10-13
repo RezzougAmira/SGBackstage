@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { EtapeDetail, MasqueRef } from "../types";
 import { useProtectedImage } from "../hooks/useProtectedImage";
 import { FonctionnalitesSection } from "./FonctionnalitesSection";
+import { EntityHistory } from "./EntityHistory";
 
 function MasqueImage({ imageKey }: { imageKey: string | null }) {
   const src = useProtectedImage(imageKey);
@@ -24,6 +26,7 @@ interface EtapeDetailsProps {
 
 export function EtapeDetails({ etape, onDeleteMasque, onEditMasque }: EtapeDetailsProps) {
   const masques = etape.masques ?? [];
+  const [historyMasque, setHistoryMasque] = useState<MasqueRef | null>(null);
   if (masques.length === 0) {
     return (
       <p className="font-poppins text-sm text-[#525f6d] dark:text-white/50">
@@ -47,6 +50,27 @@ export function EtapeDetails({ etape, onDeleteMasque, onEditMasque }: EtapeDetai
               {m.nom}
             </h4>
             <div className="ml-auto flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                title="Historique du masque"
+                onClick={() => setHistoryMasque(m)}
+                className="rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e6e8f5] hover:text-[#003049] dark:text-white/50 dark:hover:bg-white/10"
+              >
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path d="M12 8v4l2.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
               {onEditMasque && (
                 <button
                   type="button"
@@ -86,6 +110,15 @@ export function EtapeDetails({ etape, onDeleteMasque, onEditMasque }: EtapeDetai
           <FonctionnalitesSection masqueId={m.id} />
         </div>
       ))}
+      {historyMasque && (
+        <EntityHistory
+          typeEntite="masque"
+          entiteId={historyMasque.id}
+          title={`${historyMasque.code} — ${historyMasque.nom}`}
+          open={true}
+          onClose={() => setHistoryMasque(null)}
+        />
+      )}
     </div>
   );
 }

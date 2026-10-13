@@ -49,6 +49,13 @@ def apply_schema_patches() -> None:
         "ALTER TABLE processes ADD COLUMN IF NOT EXISTS diagramme_type VARCHAR",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_key VARCHAR",
         "ALTER TABLE services ADD COLUMN IF NOT EXISTS collection JSON",
+        # Les services importés directement (SQL/CSV) peuvent avoir des
+        # horodatages NULL, ce qui casse la sérialisation de l'API. On pose des
+        # défauts serveur et on comble les valeurs manquantes.
+        "ALTER TABLE services ALTER COLUMN created_at SET DEFAULT now()",
+        "ALTER TABLE services ALTER COLUMN updated_at SET DEFAULT now()",
+        "UPDATE services SET created_at = now() WHERE created_at IS NULL",
+        "UPDATE services SET updated_at = now() WHERE updated_at IS NULL",
         # Fonctionnalités : les tables sont créées ici et pas via create_all(),
         # car main.py importe le Base de database.py, qui n'est pas celui des
         # modèles (deux bases déclaratives distinctes).

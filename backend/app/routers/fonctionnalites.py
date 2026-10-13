@@ -72,7 +72,6 @@ def _serialiser(fonctionnalite: Fonctionnalite) -> dict:
                 input_desc=service.input_desc,
                 output_desc=service.output_desc,
                 controleur=service.controleur,
-                modifie_bdd=service.modifie_bdd,
                 procedures=[
                     ProcedureRef(
                         id=lp.procedure.id,

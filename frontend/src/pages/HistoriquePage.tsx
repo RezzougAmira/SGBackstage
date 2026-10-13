@@ -120,6 +120,8 @@ export function HistoriquePage() {
   const [parPage, setParPage] = useState(25);
   const [action, setAction] = useState<HistoriqueAction | "">("");
   const [typeEntite, setTypeEntite] = useState<HistoriqueTypeEntite | "">("");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deplie, setDeplie] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -129,6 +131,7 @@ export function HistoriquePage() {
       const data = await historiqueApi.list({
         action: action || undefined,
         type_entite: typeEntite || undefined,
+        search: debouncedSearch || undefined,
         page,
         par_page: parPage,
       });
@@ -140,15 +143,25 @@ export function HistoriquePage() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action, typeEntite, page, parPage]);
+  }, [action, typeEntite, page, parPage, debouncedSearch]);
 
   useEffect(() => {
     charger();
   }, [charger]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
   const clearAll = () => {
     setAction("");
     setTypeEntite("");
+    setSearch("");
+    setDebouncedSearch("");
     setPage(1);
   };
 
@@ -201,6 +214,30 @@ export function HistoriquePage() {
               })),
             ]}
           />
+        </div>
+        <div className="flex min-w-[240px] flex-col gap-2">
+          <span className="font-poppins text-[10px] font-bold uppercase text-[#0c1d31] dark:text-white">
+            Rechercher
+          </span>
+          <div className="relative">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#525f6d] dark:text-white/70"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-4-4" strokeLinecap="round" />
+            </svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Élément, type, action, utilisateur..."
+              className="w-full rounded-lg border border-[#525f6d] bg-[#f6f8fa] py-2.5 pl-9 pr-3 font-poppins text-[13px] text-[#525f6d] outline-none placeholder:text-[#9d9999] focus:bg-white dark:bg-white/5 dark:text-white/70 dark:placeholder:text-white/40"
+            />
+          </div>
         </div>
 
         <button
