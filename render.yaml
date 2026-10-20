@@ -1,0 +1,37 @@
+# Blueprint Render — déploiement gratuit du backend FastAPI.
+#
+# Render lit ce fichier à la racine du dépôt lorsqu'on crée un
+# "Blueprint" depuis le repo GitHub (New > Blueprint).
+# Les variables marquées sync: false se renseignent dans le dashboard
+# Render après la création (voir DEPLOYMENT.md).
+
+services:
+  - type: web
+    name: sgb-techtrace-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # Les migrations Alembic sont appliquées à chaque démarrage, puis
+    # l'API démarre sur le port attribué par Render ($PORT).
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      # URL de connexion Supabase (pooler "Transaction", port 6543,
+      # avec ?sslmode=require) — à coller dans le dashboard Render.
+      - key: DATABASE_URL
+        sync: false
+      # Secret JWT généré automatiquement par Render.
+      - key: JWT_SECRET
+        generateValue: true
+      # Origines du frontend autorisées, ex. https://sgb-techtrace.vercel.app
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # Supabase Storage (identiques à ceux du développement).
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: process-diagrammes

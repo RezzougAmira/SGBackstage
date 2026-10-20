@@ -8,7 +8,7 @@ from ..models.process import Process
 from ..models.user import User
 from ..schemas.domaine import DomaineCreate, DomaineResponse
 from ..utils import impact
-from ..utils.deps import get_current_user
+from ..utils.deps import require_deleter, require_writer
 from ..utils.export_docx import build_domaine_document
 from ..utils.filenames import slug_fichier
 from ..utils.historique import enregistrer_historique, snapshot
@@ -70,7 +70,7 @@ def export_domaine_docx(domaine_id: int, db: Session = Depends(get_db)):
 def create_domaine(
     domaine: DomaineCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     # Vérifier l'unicité du nom
     existing = db.query(Domaine).filter(Domaine.nom == domaine.nom).first()
@@ -97,7 +97,7 @@ def update_domaine(
     domaine_id: int,
     domaine: DomaineCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_domaine = db.query(Domaine).filter(Domaine.id == domaine_id).first()
     if not db_domaine:
@@ -121,7 +121,7 @@ def update_domaine(
 def delete_domaine(
     domaine_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_deleter),
 ):
     db_domaine = db.query(Domaine).filter(Domaine.id == domaine_id).first()
     if not db_domaine:

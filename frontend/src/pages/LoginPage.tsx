@@ -1,14 +1,9 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-
-// Assets exported from Figma (AGBACKSTAGE — SE CONNECTER, node 7:7).
-// Swap these for files under /src/assets once you've downloaded them locally.
-const imgBg = "https://www.figma.com/api/mcp/asset/7c91f38b-596c-4dd2-b453-8ea8bfa121e8/db1d3.svg";
-const imgIllustration =
-  "https://www.figma.com/api/mcp/asset/7c91f38b-596c-4dd2-b453-8ea8bfa121e8/3536c.png";
-const imgLogo =
-  "https://www.figma.com/api/mcp/asset/7c91f38b-596c-4dd2-b453-8ea8bfa121e8/25742.png";
+import imgBg from "../assets/blueSide.png";
+import imgIllustration from "../assets/TOUR.png";
+import imgLogo from "../assets/logoAGB.png";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -45,12 +40,12 @@ export function LoginPage() {
           className="absolute bottom-0 left-[36%] h-[88%] w-auto max-h-[740px] -translate-x-1/2 object-contain object-bottom"
           src={imgIllustration}
         />
-        <img alt="AGBackstage" className="absolute left-[4.5%] top-[4%] w-[26%]" src={imgLogo} />
+        <img alt="AGBackstage" className="absolute left-[4.5%] top-[4%] w-[10%]" src={imgLogo} />
       </div>
 
       {/* Mobile header with logo */}
       <div className="relative z-10 flex items-center justify-center pt-8 lg:hidden">
-        <img alt="AGBackstage" className="w-44" src={imgLogo} />
+        <img alt="AGBackstage" className="w-12" src={imgLogo} />
       </div>
 
       {/* Right content — centered on mobile, right-aligned on desktop */}

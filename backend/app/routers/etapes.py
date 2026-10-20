@@ -11,7 +11,7 @@ from ..models.masque import EtapeMasque
 from ..models.process import Process
 from ..models.user import User
 from ..utils import impact
-from ..utils.deps import get_current_user
+from ..utils.deps import require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 from ..utils.export_docx import build_etape_document, build_process_document
 from ..schemas.etape import (
@@ -156,7 +156,7 @@ def create_etape(
     process_id: int,
     etape: EtapeCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     existing = (
         db.query(Etape)
@@ -210,7 +210,7 @@ def update_etape(
     etape_id: int,
     etape: EtapeCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_etape = _charger_etape(db, process_id, etape_id)
 
@@ -234,7 +234,7 @@ def delete_etape(
     etape_id: int,
     supprimer_masques: bool = False,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_deleter),
 ):
     """Supprime l'étape, et ses masques seulement si l'utilisateur le demande.
 
@@ -310,7 +310,7 @@ def reorder_etapes(
     process_id: int,
     reorder: EtapeReorder,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     for index, etape_id in enumerate(reorder.etape_ids):
         etape = db.query(Etape).filter(
@@ -405,7 +405,7 @@ def detach_masque_de_etape(
     etape_id: int,
     masque_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     """Retire un masque de cette étape sans toucher au masque lui-même.
 

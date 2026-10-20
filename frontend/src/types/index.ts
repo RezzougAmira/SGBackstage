@@ -156,6 +156,10 @@ export interface Masque {
   image_key: string | null;
   created_at: string;
   updated_at: string;
+  /** Rattachements : étapes qui le portent, services appelés, fonctionnalités. */
+  etapes: TableRef[];
+  services: TableRef[];
+  fonctionnalites: TableRef[];
 }
 
 export interface Service {
@@ -169,6 +173,10 @@ export interface Service {
   collection: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
+  /** Rattachements : procédures invoquées, masques appelants, fonctionnalités. */
+  procedures: TableRef[];
+  masques: TableRef[];
+  fonctionnalites: TableRef[];
 }
 
 export interface Procedure {
@@ -177,6 +185,9 @@ export interface Procedure {
   description: string | null;
   created_at: string;
   updated_at: string;
+  /** Services qui invoquent la procédure, et tables qu'elle touche. */
+  services: TableRef[];
+  tables: TableRef[];
 }
 
 export interface FonctionnaliteProcedure {
@@ -250,12 +261,16 @@ export interface Stats {
   fonctionnalites: number;
   services: number;
   procedures: number;
-  tables: number;
-  attributs: number;
-  archives: number;
   utilisateurs: number;
   evenements: number;
-  activite_14j: { date: string; total: number }[];
+  /** Activité des 14 derniers jours : détail par action déjà inclus. */
+  activite_14j: (
+    & { date: string; total: number }
+    & Record<
+      "creation" | "modification" | "suppression" | "rattachement" | "detachement" | "reorder",
+      number
+    >
+  )[];
   repartition_par_type: {
     type_entite: string;
     creation: number;
@@ -308,6 +323,14 @@ export interface HistoriqueResponse {
   page: number;
   par_page: number;
   evenements: HistoriqueEvent[];
+}
+
+/** Utilisateur déjà présent dans le journal (source du filtre par utilisateur). */
+export interface HistoriqueUtilisateur {
+  id: number;
+  name: string;
+  avatar_key: string | null;
+  evenements: number;
 }
 
 export interface HistoriqueFilters {

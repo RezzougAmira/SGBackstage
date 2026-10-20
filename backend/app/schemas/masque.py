@@ -24,6 +24,12 @@ class MasqueEtapeCreate(MasqueCreate):
     service: Optional[ServiceInfo] = None
 
 
+class MasqueLienRef(BaseModel):
+    """Élément rattaché à un masque : une étape, un service, une fonctionnalité."""
+    id: int
+    nom: str
+
+
 class MasqueResponse(BaseModel):
     id: int
     code: str
@@ -32,6 +38,12 @@ class MasqueResponse(BaseModel):
     image_key: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    # Rattachements : étapes qui portent le masque, services appelés,
+    # fonctionnalités offertes. Alimentent le badge d'image, l'export CSV,
+    # le filtre par étape et le bloc « Où le masque est utilisé ».
+    etapes: List[MasqueLienRef] = []
+    services: List[MasqueLienRef] = []
+    fonctionnalites: List[MasqueLienRef] = []
 
     class Config:
         from_attributes = True

@@ -5,7 +5,7 @@ from ..database import get_db
 from ..models.table import TableInfo
 from ..models.user import User
 from ..schemas.table import TableCreate, TableResponse
-from ..utils.deps import get_current_user
+from ..utils.deps import require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/tables", tags=["tables"])
@@ -36,7 +36,7 @@ def get_table(table_id: int, db: Session = Depends(get_db)):
 def create_table(
     table: TableCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     existing = db.query(TableInfo).filter(
         TableInfo.nom == table.nom,
@@ -65,7 +65,7 @@ def update_table(
     table_id: int,
     table: TableCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_table = db.query(TableInfo).filter(TableInfo.id == table_id).first()
     if not db_table:
@@ -89,7 +89,7 @@ def update_table(
 def delete_table(
     table_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_deleter),
 ):
     db_table = db.query(TableInfo).filter(TableInfo.id == table_id).first()
     if not db_table:

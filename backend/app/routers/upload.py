@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from ..models.user import User
-from ..utils.deps import get_current_user
+from ..utils.deps import get_current_user, require_writer
 from ..utils.storage import delete_file, download_file, upload_file
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
@@ -18,7 +18,7 @@ MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post("/")
-async def upload(file: UploadFile = File(...), _: User = Depends(get_current_user)):
+async def upload(file: UploadFile = File(...), _: User = Depends(require_writer)):
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=400,
@@ -61,7 +61,7 @@ def get_file(key: str, _: User = Depends(get_current_user)):
 
 
 @router.delete("/")
-def delete(key: str, _: User = Depends(get_current_user)):
+def delete(key: str, _: User = Depends(require_writer)):
     try:
         success = delete_file(key)
     except RuntimeError as exc:

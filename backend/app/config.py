@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str = ""
     SUPABASE_BUCKET: str = "process-diagrammes"
 
+    # CORS — origines autorisées en plus des localhost de développement,
+    # séparées par des virgules (p.ex. https://sgb-techtrace.vercel.app).
+    # Requis en production : sans cette variable, le frontend déployé est
+    # bloqué par le navigateur car il n'est pas sur localhost.
+    ALLOWED_ORIGINS: str = ""
+
     # Serveur
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 3001

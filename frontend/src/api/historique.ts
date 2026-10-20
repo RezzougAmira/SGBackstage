@@ -1,5 +1,9 @@
 import { api } from './client';
-import { HistoriqueFilters, HistoriqueResponse } from '../types';
+import {
+  HistoriqueFilters,
+  HistoriqueResponse,
+  HistoriqueUtilisateur,
+} from '../types';
 
 export const historiqueApi = {
   /** Journal des changements, avec filtres et pagination. */
@@ -17,4 +21,7 @@ export const historiqueApi = {
     params.set('par_page', String(filters.par_page ?? 50));
     return api.get<HistoriqueResponse>(`/api/historique/?${params.toString()}`);
   },
+
+  /** Utilisateurs présents dans le journal (pour le filtre, tous rôles). */
+  utilisateurs: () => api.get<HistoriqueUtilisateur[]>('/api/historique/utilisateurs'),
 };

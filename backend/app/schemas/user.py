@@ -1,18 +1,45 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
+
+from ..utils.roles import ROLE_CONTRIBUTOR, VALID_ROLES
 
 
 class UserCreate(BaseModel):
     email: str
     password: str
     name: str
-    role: Optional[str] = "developer"
+    role: Optional[str] = ROLE_CONTRIBUTOR
+
+    @field_validator("role")
+    @classmethod
+    def _valider_role(cls, value: Optional[str]) -> str:
+        if value is None:
+            return ROLE_CONTRIBUTOR
+        if value not in VALID_ROLES:
+            raise ValueError(
+                "Rôle invalide : utilisez admin, editor ou contributor"
+            )
+        return value
 
 
 class UserLogin(BaseModel):
     email: str
     password: str
+
+
+class UserPasswordReset(BaseModel):
+    """Nouveau mot de passe d'un compte, fixé par un administrateur."""
+
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def _valider_password(cls, value: str) -> str:
+        value = value or ""
+        if len(value) < 6:
+            raise ValueError("Le mot de passe doit contenir au moins 6 caractères")
+        return value
 
 
 class UserResponse(BaseModel):

@@ -6,10 +6,15 @@ import { Pagination } from "../components/Pagination";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { ServiceForm } from "../components/forms/ServiceForm";
 import { EntityHistory } from "../components/EntityHistory";
+import { useAuth } from "../hooks/useAuth";
+import { canDelete } from "../utils/roles";
 
 const PAGE_SIZE = 10;
 
 type ServiceFormData = Parameters<typeof servicesApi.create>[0];
+
+/** Colonnes triables de la table. */
+type TriCle = "nom" | "methode" | "controleur" | "procedures";
 
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -48,7 +53,7 @@ function ServiceDetail({ service }: { service: Service }) {
   return (
     <div>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-        <DetailField label="Nom" value={<span className="font-mono">{service.nom}</span>} />
+        <DetailField label="Nom" value={<span className="break-all font-mono">{service.nom}</span>} />
         <DetailField label="Méthode HTTP" value={service.methode_http || "—"} />
         <div className="sm:col-span-2">
           <DetailField
@@ -56,10 +61,61 @@ function ServiceDetail({ service }: { service: Service }) {
             value={<span className="break-all font-mono">{service.url || "—"}</span>}
           />
         </div>
-        <DetailField label="Contrôleur" value={<span className="font-mono">{service.controleur || "—"}</span>} />
+        <DetailField label="Contrôleur" value={<span className="break-all font-mono">{service.controleur || "—"}</span>} />
         <DetailField label="Entrée" value={service.input_desc || "—"} />
         <DetailField label="Sortie" value={service.output_desc || "—"} />
       </dl>
+
+      {/* Où le service est utilisé : masques appelants + fonctionnalités. */}
+      <div className="mt-5 border-t border-[#e6e8f5] pt-4 dark:border-white/10">
+        <p className="font-poppins text-xs font-bold uppercase tracking-wider text-[#525f6d] dark:text-white/40">
+          Où le service est utilisé
+        </p>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <p className="font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
+              Masques ({service.masques.length})
+            </p>
+            {service.masques.length === 0 ? (
+              <p className="mt-1.5 font-poppins text-xs text-[#8ea0b3] dark:text-white/40">
+                Aucun masque ne l'appelle.
+              </p>
+            ) : (
+              <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                {service.masques.map((m) => (
+                  <li
+                    key={m.id}
+                    className="rounded-full bg-[#e6e8f5] px-2.5 py-1 text-xs font-medium text-[#003049] dark:bg-white/10 dark:text-white"
+                  >
+                    {m.nom}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div>
+            <p className="font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
+              Fonctionnalités ({service.fonctionnalites.length})
+            </p>
+            {service.fonctionnalites.length === 0 ? (
+              <p className="mt-1.5 font-poppins text-xs text-[#8ea0b3] dark:text-white/40">
+                Aucune fonctionnalité ne l'utilise.
+              </p>
+            ) : (
+              <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                {service.fonctionnalites.map((f) => (
+                  <li
+                    key={f.id}
+                    className="rounded-full bg-[#f1f3f9] px-2.5 py-1 text-xs font-medium text-[#004a86] dark:bg-white/10 dark:text-[#4aa1de]"
+                  >
+                    {f.nom}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
 
       {service.collection && Object.keys(service.collection).length > 0 && (
         <div className="mt-4">
@@ -132,6 +188,92 @@ const HistoryIcon = () => (
   </svg>
 );
 
+const DownloadIcon = () => (
+  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+    <path d="M12 3v12m0 0 4-4m-4 4-4-4" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" />
+  </svg>
+);
+
+/** Filtre déroulant, même style que le Journal des changements. */
+function FilterSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="font-poppins text-[10px] font-bold uppercase text-[#0c1d31] dark:text-white">
+        {label}
+      </span>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full appearance-none rounded-lg border border-[#525f6d] bg-[#f6f8fa] px-3 py-2.5 pr-8 font-poppins text-[13px] text-[#525f6d] outline-none dark:bg-white/5 dark:text-white/70"
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <svg
+          className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#525f6d] dark:text-white/70"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/** Entête de colonne cliquable : affiche un chevron indiquant le tri actif. */
+function ThTriable({
+  label,
+  cle,
+  tri,
+  onToggle,
+}: {
+  label: string;
+  cle: TriCle;
+  tri: { cle: TriCle; asc: boolean } | null;
+  onToggle: (cle: TriCle) => void;
+}) {
+  const actif = tri?.cle === cle;
+  return (
+    <th className="px-6 py-3 text-left text-xs font-bold uppercase text-[#8ea0b3] dark:text-white/40">
+      <button
+        type="button"
+        onClick={() => onToggle(cle)}
+        className={`inline-flex items-center gap-1 uppercase transition hover:text-[#004a86] dark:hover:text-white ${actif ? "text-[#004a86] dark:text-white" : ""}`}
+        title={`Trier par ${label.toLowerCase()}`}
+      >
+        {label}
+        <svg
+          className={`h-3 w-3 transition-transform ${actif ? "opacity-100" : "opacity-30"} ${actif && !tri?.asc ? "rotate-180" : ""}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </th>
+  );
+}
+
 const TableSkeleton = () => (
   <div className="animate-pulse rounded-2xl border border-[#e6e8f5] bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#131313]">
     <div className="space-y-3">
@@ -143,6 +285,8 @@ const TableSkeleton = () => (
 );
 
 export function ServicesPage() {
+  const { user } = useAuth();
+  const peutSupprimer = canDelete(user?.role);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -155,9 +299,14 @@ export function ServicesPage() {
   const [createErr, setCreateErr] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
+  // Filtre : méthode HTTP réellement utilisée par les services.
+  const [filtreMethode, setFiltreMethode] = useState("");
+  // Tri par colonne. null = ordre d'origine.
+  const [tri, setTri] = useState<{ cle: TriCle; asc: boolean } | null>(null);
   const t = useRef<number>();
 
-  useEffect(() => setPage(1), [query]);
+  useEffect(() => setPage(1), [query, tri, filtreMethode]);
   useEffect(() => () => window.clearTimeout(t.current), []);
   const fetch = async () => {
     try {
@@ -176,18 +325,69 @@ export function ServicesPage() {
     () =>
       services.filter((s) => {
         const q = query.toLowerCase();
-        return s.nom.toLowerCase().includes(q) || (s.url || "").toLowerCase().includes(q);
+        // Recherche élargie : nom, URL, contrôleur, entrée, sortie.
+        const correspond =
+          s.nom.toLowerCase().includes(q) ||
+          (s.url || "").toLowerCase().includes(q) ||
+          (s.controleur || "").toLowerCase().includes(q) ||
+          (s.input_desc || "").toLowerCase().includes(q) ||
+          (s.output_desc || "").toLowerCase().includes(q);
+        if (!correspond) return false;
+        if (filtreMethode && (s.methode_http || "") !== filtreMethode) return false;
+        return true;
       }),
-    [services, query]
+    [services, query, filtreMethode]
   );
+
+  // Applique le tri choisi (sur la vue filtrée, avant pagination).
+  const sorted = useMemo(() => {
+    if (!tri) return filtered;
+    const { cle, asc } = tri;
+    const valeur = (s: Service) =>
+      cle === "procedures"
+        ? s.procedures.length
+        : cle === "nom"
+          ? s.nom
+          : cle === "methode"
+            ? s.methode_http ?? ""
+            : s.controleur ?? "";
+    return [...filtered].sort((a, b) => {
+      const va = valeur(a);
+      const vb = valeur(b);
+      const cmp =
+        typeof va === "number" && typeof vb === "number"
+          ? va - vb
+          : String(va).localeCompare(String(vb), "fr", { sensitivity: "base" });
+      return asc ? cmp : -cmp;
+    });
+  }, [filtered, tri]);
+
+  /** Méthodes HTTP réellement présentes dans les données (pour le filtre). */
+  const methodesDisponibles = useMemo(
+    () =>
+      [...new Set(services.map((s) => s.methode_http).filter((m): m is string => !!m))].sort(),
+    [services]
+  );
+
+  const filtresActifs = query !== "" || filtreMethode !== "";
+
   const pageItems = useMemo(
-    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filtered, page]
+    () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [sorted, page]
   );
   useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
     if (page > totalPages) setPage(totalPages);
-  }, [filtered.length, page]);
+  }, [sorted.length, page]);
+
+  /** Bascule le tri sur une colonne (asc → desc → aucun). */
+  const basculerTri = (cle: TriCle) => {
+    setTri((prec) => {
+      if (!prec || prec.cle !== cle) return { cle, asc: true };
+      if (prec.asc) return { cle, asc: false };
+      return null;
+    });
+  };
 
   const show = (msg: string) => {
     setToast(msg);
@@ -233,6 +433,44 @@ export function ServicesPage() {
     }
   };
 
+  /**
+   * Exporte en CSV la vue filtrée (et triée), pas seulement la page courante.
+   * Tout est côté client : les services sont déjà chargés en mémoire.
+   */
+  const exporterCsv = () => {
+    if (sorted.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      const lignes = [
+        ["Nom", "Méthode", "URL", "Contrôleur", "Entrée", "Sortie", "Procédures", "Créé le", "Modifié le"],
+        ...sorted.map((s) => [
+          s.nom,
+          s.methode_http ?? "",
+          s.url ?? "",
+          s.controleur ?? "",
+          s.input_desc ?? "",
+          s.output_desc ?? "",
+          s.procedures.map((p) => p.nom).join(", "),
+          formatDateCsv(s.created_at),
+          formatDateCsv(s.updated_at),
+        ]),
+      ];
+      const csv = lignes.map((l) => l.map(celluleCsv).join(";")).join("\r\n");
+      // BOM UTF-8 : Excel affiche les accents ; « ; » : séparateur Excel FR.
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = `services-techniques-${new Date().toISOString().slice(0, 10)}.csv`;
+      lien.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Erreur lors de l'export CSV:", error);
+      window.alert("L'export CSV a échoué. Réessayez.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="font-poppins">
@@ -242,7 +480,7 @@ export function ServicesPage() {
           Services appelés par les masques, avec leurs procédures stockées
         </p>
       </div>
-      <div className="mb-8 flex flex-wrap justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <label className="flex w-full max-w-[755px] items-center gap-2 rounded-full bg-[#e6e8f5] px-5 py-3 dark:bg-white/5">
           <SearchIcon />
           <input
@@ -251,18 +489,76 @@ export function ServicesPage() {
             placeholder="Rechercher..."
             className="w-full bg-transparent text-sm outline-none dark:text-white/70"
           />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              title="Tout effacer"
+              aria-label="Tout effacer"
+              className="shrink-0 rounded-full p-0.5 text-[#525f6d] hover:bg-black/5 hover:text-[#0c1d31] dark:text-white/50 dark:hover:bg-white/10"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
         </label>
-        <button
-          onClick={() => {
-            setCreateErr(null);
-            setCreateOpen(true);
-          }}
-          className="flex h-[46px] items-center gap-2 rounded-xl bg-[#003049] px-5 text-sm font-semibold text-white hover:bg-[#00263a]"
-        >
-          <PlusIcon />
-          Nouveau service
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={exporterCsv}
+            disabled={sorted.length === 0 || exporting}
+            className="flex h-[46px] items-center gap-2 rounded-xl border border-[#003049] px-5 text-sm font-semibold text-[#003049] transition hover:bg-[#e6e8f5] disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/30 dark:text-white dark:hover:bg-white/10"
+          >
+            <DownloadIcon />
+            {exporting ? "Exportation…" : "Exporter CSV"}
+          </button>
+          <button
+            onClick={() => {
+              setCreateErr(null);
+              setCreateOpen(true);
+            }}
+            className="flex h-[46px] items-center gap-2 rounded-xl bg-[#003049] px-5 text-sm font-semibold text-white hover:bg-[#00263a]"
+          >
+            <PlusIcon />
+            Nouveau service
+          </button>
+        </div>
       </div>
+
+      {/* Filtre : méthode HTTP. */}
+      <div className="mb-6 flex flex-wrap items-end gap-4">
+        <div className="w-[200px]">
+          <FilterSelect
+            label="Méthode HTTP"
+            value={filtreMethode}
+            onChange={setFiltreMethode}
+            options={[
+              { value: "", label: "Toutes les méthodes" },
+              ...methodesDisponibles.map((m) => ({ value: m, label: m })),
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* Compteur de résultats : total et, si filtre, nombre filtré. */}
+      {!loading && (
+        <p className="mb-3 text-sm text-[#525f6d] dark:text-white/60">
+          {filtresActifs ? (
+            <>
+              <span className="font-semibold text-[#0c1d31] dark:text-white">{sorted.length}</span>{" "}
+              résultat{sorted.length > 1 ? "s" : ""} sur {services.length} service
+              {services.length > 1 ? "s" : ""}
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-[#0c1d31] dark:text-white">{services.length}</span>{" "}
+              service{services.length > 1 ? "s" : ""}
+            </>
+          )}
+        </p>
+      )}
+
       {loading ? (
         <TableSkeleton />
       ) : (
@@ -270,10 +566,11 @@ export function ServicesPage() {
           <table className="min-w-full divide-y divide-[#e6e8f5] dark:divide-white/10">
             <thead className="bg-[#f6f8fa] dark:bg-white/5">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-bold uppercase text-[#8ea0b3] dark:text-white/40">Nom</th>
-                <th className="px-6 py-3 text-left text-xs font-bold uppercase text-[#8ea0b3] dark:text-white/40">Méthode</th>
+                <ThTriable label="Nom" cle="nom" tri={tri} onToggle={basculerTri} />
+                <ThTriable label="Méthode" cle="methode" tri={tri} onToggle={basculerTri} />
                 <th className="px-6 py-3 text-left text-xs font-bold uppercase text-[#8ea0b3] dark:text-white/40">URL</th>
-                <th className="px-6 py-3 text-left text-xs font-bold uppercase text-[#8ea0b3] dark:text-white/40">Contrôleur</th>
+                <ThTriable label="Contrôleur" cle="controleur" tri={tri} onToggle={basculerTri} />
+                <ThTriable label="Procédures" cle="procedures" tri={tri} onToggle={basculerTri} />
                 <th className="px-6 py-3 text-right text-xs font-bold uppercase text-[#8ea0b3] dark:text-white/40">Actions</th>
               </tr>
             </thead>
@@ -285,14 +582,42 @@ export function ServicesPage() {
                   title="Voir le détail"
                   className="cursor-pointer hover:bg-[#f6f8fa]/60 dark:hover:bg-white/5"
                 >
-                  <td className="px-6 py-4 text-sm font-medium text-[#0c1d31] dark:text-white">{s.nom}</td>
+                  <td
+                    className="max-w-[280px] truncate px-6 py-4 text-sm font-medium text-[#0c1d31] dark:text-white"
+                    title={s.nom}
+                  >
+                    {s.nom}
+                  </td>
                   <td className="whitespace-nowrap px-6 py-4 text-xs font-mono font-semibold text-[#004a86] dark:text-[#4aa1de]">
                     {s.methode_http || "—"}
                   </td>
-                  <td className="max-w-md truncate px-6 py-4 text-sm text-[#525f6d] dark:text-white/60">
+                  <td
+                    className="max-w-[280px] truncate px-6 py-4 font-mono text-sm text-[#525f6d] dark:text-white/60"
+                    title={s.url || ""}
+                  >
                     {s.url || "—"}
                   </td>
-                  <td className="px-6 py-4 text-sm text-[#525f6d] dark:text-white/60">{s.controleur || "—"}</td>
+                  <td
+                    className="max-w-[200px] truncate px-6 py-4 text-sm text-[#525f6d] dark:text-white/60"
+                    title={s.controleur || ""}
+                  >
+                    {s.controleur || "—"}
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    {s.procedures.length === 0 ? (
+                      <span className="text-[#8ea0b3] dark:text-white/30">Aucune</span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-full bg-[#e6e8f5] px-2.5 py-1 text-xs font-semibold text-[#003049] dark:bg-white/10 dark:text-white"
+                        title={s.procedures.map((p) => p.nom).join(", ")}
+                      >
+                        {s.procedures.length}
+                        <span className="font-normal">
+                          procédure{s.procedures.length > 1 ? "s" : ""}
+                        </span>
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-1">
                       <button
@@ -312,20 +637,22 @@ export function ServicesPage() {
                       >
                         <PencilIcon />
                       </button>
-                      <button
-                        title="Supprimer"
-                        onClick={() => setDel(s)}
-                        className="rounded-lg p-1.5 text-[#525f6d] hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
-                      >
-                        <TrashIcon />
-                      </button>
+                      {peutSupprimer && (
+                        <button
+                          title="Supprimer"
+                          onClick={() => setDel(s)}
+                          className="rounded-lg p-1.5 text-[#525f6d] hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
+                        >
+                          <TrashIcon />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-[#8ea0b3] dark:text-white/40">
+                  <td colSpan={6} className="px-6 py-8 text-center text-sm text-[#8ea0b3] dark:text-white/40">
                     Aucun service trouvé.
                   </td>
                 </tr>
@@ -337,7 +664,7 @@ export function ServicesPage() {
       {!loading && (
         <Pagination
           page={page}
-          total={filtered.length}
+          total={sorted.length}
           pageSize={PAGE_SIZE}
           onChange={setPage}
         />
@@ -441,4 +768,24 @@ export function ServicesPage() {
       )}
     </div>
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Export CSV                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/** Échappe une cellule : guillemets doublés, tout entre guillemets. */
+function celluleCsv(valeur: string): string {
+  return `"${valeur.replace(/"/g, '""')}"`;
+}
+
+/** Date ISO → jj/mm/aaaa hh:mm (plus compact pour un tableur). */
+function formatDateCsv(iso: string): string {
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

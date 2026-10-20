@@ -5,6 +5,8 @@ import { domainesApi } from "../api/domaines";
 import { DomaineForm } from "../components/forms/DomaineForm";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { DomainesSkeleton } from "../components/ui/pageSkeletons";
+import { useAuth } from "../hooks/useAuth";
+import { canDelete } from "../utils/roles";
 
 interface DomaineCard extends Domaine {
   processus: number;
@@ -49,6 +51,8 @@ function CountBadge({ count, label }: { count: number | string; label: string })
 }
 
 export function DomainesPage() {
+  const { user } = useAuth();
+  const peutSupprimer = canDelete(user?.role);
   const [domaines, setDomaines] = useState<DomaineCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -189,16 +193,18 @@ export function DomainesPage() {
                     <path d="M17 3a2.85 2.83 0 114.01 4L8 20l-4 1 1-4L17 3z" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
-                <button
-                  type="button"
-                  title="Supprimer le domaine"
-                  onClick={() => setDomaineToDelete(d)}
-                  className="rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
+                {peutSupprimer && (
+                  <button
+                    type="button"
+                    title="Supprimer le domaine"
+                    onClick={() => setDomaineToDelete(d)}
+                    className="rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
 

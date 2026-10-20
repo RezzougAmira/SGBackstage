@@ -7,6 +7,7 @@ import {
   HistoriqueAction,
   HistoriqueEvent,
   HistoriqueTypeEntite,
+  HistoriqueUtilisateur,
 } from '../types';
 
 /* -------------------------------------------------------------------------- */
@@ -120,21 +121,44 @@ export function HistoriquePage() {
   const [parPage, setParPage] = useState(25);
   const [action, setAction] = useState<HistoriqueAction | "">("");
   const [typeEntite, setTypeEntite] = useState<HistoriqueTypeEntite | "">("");
+  const [utilisateurId, setUtilisateurId] = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
+  const [utilisateurs, setUtilisateurs] = useState<HistoriqueUtilisateur[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deplie, setDeplie] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  // Filtre « historique d'un élément » lancé depuis le détail d'une ligne.
+  const [entiteFiltre, setEntiteFiltre] = useState<{ id: number; nom: string } | null>(null);
+
+  // Source du filtre par utilisateur : les comptes déjà présents dans le
+  // journal (la route est ouverte à tous les rôles, pas /api/auth/users).
+  useEffect(() => {
+    historiqueApi
+      .utilisateurs()
+      .then(setUtilisateurs)
+      .catch(() => setUtilisateurs([]));
+  }, []);
+
+  /** Filtres courants, partagés par l'affichage et l'export CSV. */
+  const filtresBase = () => ({
+    action: action || undefined,
+    type_entite: typeEntite || undefined,
+    entite_id: entiteFiltre?.id,
+    utilisateur_id: utilisateurId ? Number(utilisateurId) : undefined,
+    // Le backend travaille en ISO : « jusqua » à minuit exclurait la
+    // dernière journée entière, on prend donc la fin de journée.
+    depuis: dateDebut ? `${dateDebut}T00:00:00` : undefined,
+    jusqua: dateFin ? `${dateFin}T23:59:59` : undefined,
+    search: debouncedSearch || undefined,
+  });
 
   const charger = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await historiqueApi.list({
-        action: action || undefined,
-        type_entite: typeEntite || undefined,
-        search: debouncedSearch || undefined,
-        page,
-        par_page: parPage,
-      });
+      const data = await historiqueApi.list({ ...filtresBase(), page, par_page: parPage });
       setEvenements(data.evenements);
       setTotal(data.total);
     } catch (error) {
@@ -143,7 +167,7 @@ export function HistoriquePage() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [action, typeEntite, page, parPage, debouncedSearch]);
+  }, [action, typeEntite, entiteFiltre, utilisateurId, dateDebut, dateFin, page, parPage, debouncedSearch]);
 
   useEffect(() => {
     charger();
@@ -160,9 +184,72 @@ export function HistoriquePage() {
   const clearAll = () => {
     setAction("");
     setTypeEntite("");
+    setEntiteFiltre(null);
+    setUtilisateurId("");
+    setDateDebut("");
+    setDateFin("");
     setSearch("");
     setDebouncedSearch("");
     setPage(1);
+  };
+
+  const filtresActifs = Boolean(
+    action || typeEntite || entiteFiltre || utilisateurId || dateDebut || dateFin || debouncedSearch,
+  );
+
+  /** Posé depuis le détail d'une ligne : ne garde que cet élément. */
+  const filtrerParEntite = (evt: HistoriqueEvent) => {
+    if (evt.entite_id == null) return;
+    setEntiteFiltre({ id: evt.entite_id, nom: evt.nom_entite ?? `#${evt.entite_id}` });
+    setTypeEntite(evt.type_entite);
+    setPage(1);
+    setDeplie(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /**
+   * Exporte en CSV la vue filtrée — toutes les lignes filtrées, pas seulement
+   * la page courante. Tout se passe côté client : on boucle sur la pagination
+   * existante (max 200 par requête, plafond backend) puis on génère le Blob.
+   */
+  const exporterCsv = async () => {
+    if (total === 0 || exporting) return;
+    setExporting(true);
+    try {
+      const premier = await historiqueApi.list({ ...filtresBase(), page: 1, par_page: 200 });
+      let tous = premier.evenements;
+      const nbPages = Math.ceil(premier.total / 200);
+      for (let p = 2; p <= nbPages; p++) {
+        const suite = await historiqueApi.list({ ...filtresBase(), page: p, par_page: 200 });
+        tous = tous.concat(suite.evenements);
+      }
+
+      const lignesCsv = [
+        ["Date", "Utilisateur", "Action", "Type", "Element", "Modifications"],
+        ...tous.map((e) => [
+          formatDateCsv(e.created_at),
+          e.utilisateur?.name ?? "—",
+          HISTORIQUE_ACTIONS[e.action] ?? e.action,
+          HISTORIQUE_ENTITES[e.type_entite] ?? e.type_entite,
+          e.nom_entite ?? "—",
+          resumeModifs(e),
+        ]),
+      ];
+      const csv = lignesCsv.map((l) => l.map(celluleCsv).join(";")).join("\r\n");
+      // BOM UTF-8 : Excel affiche les accents ; « ; » : séparateur Excel FR.
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = `journal-changements-${new Date().toISOString().slice(0, 10)}.csv`;
+      lien.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Erreur lors de l'export CSV:", error);
+      window.alert("L'export CSV a échoué. Réessayez.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const totalPages = Math.max(1, Math.ceil(total / parPage));
@@ -179,8 +266,65 @@ export function HistoriquePage() {
         </p>
       </div>
 
+      {/* Barre de recherche — même style pilule que les autres pages */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <label className="flex w-full max-w-[755px] items-center gap-2 rounded-full bg-[#e6e8f5] px-5 py-3 dark:bg-white/5">
+          <svg
+            className="h-5 w-5 shrink-0 text-[#525f6d] dark:text-white/50"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" strokeLinecap="round" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher un élément, un utilisateur..."
+            className="w-full bg-transparent font-poppins text-sm text-[#525f6d] placeholder:text-[#525f6d] outline-none dark:text-white/70"
+          />
+        </label>
+
+        <button
+          type="button"
+          onClick={exporterCsv}
+          disabled={total === 0 || exporting}
+          className="flex h-[46px] shrink-0 items-center gap-2 rounded-xl bg-[#003049] px-5 font-poppins text-sm font-semibold text-white transition hover:bg-[#00263a] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path d="M12 3v12m0 0 4-4m-4 4-4-4" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" />
+          </svg>
+          {exporting ? "Exportation…" : "Exporter CSV"}
+        </button>
+      </div>
+
       {/* Filtres */}
       <div className="mb-6 flex flex-wrap items-end gap-6">
+        {entiteFiltre && (
+          <button
+            type="button"
+            onClick={() => {
+              setEntiteFiltre(null);
+              setTypeEntite("");
+              setPage(1);
+            }}
+            title="Retirer le filtre élément"
+            className="flex items-center gap-2 rounded-full border border-[#003049] bg-[#e6e8f5] px-4 py-2.5 font-poppins text-xs font-semibold text-[#003049] hover:bg-[#dbe0f2] dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
+          >
+            Élément : {entiteFiltre.nom}
+            <span aria-hidden="true">✕</span>
+          </button>
+        )}
         <div className="w-[200px]">
           <FilterSelect
             label="Action"
@@ -215,38 +359,61 @@ export function HistoriquePage() {
             ]}
           />
         </div>
-        <div className="flex min-w-[240px] flex-col gap-2">
+        <div className="w-[200px]">
+          <FilterSelect
+            label="Utilisateur"
+            value={utilisateurId}
+            onChange={(v) => {
+              setUtilisateurId(v);
+              setPage(1);
+            }}
+            options={[
+              { value: "", label: "Tous les utilisateurs" },
+              ...utilisateurs.map((u) => ({
+                value: String(u.id),
+                label: `${u.name} (${u.evenements})`,
+              })),
+            ]}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
           <span className="font-poppins text-[10px] font-bold uppercase text-[#0c1d31] dark:text-white">
-            Rechercher
+            Période
           </span>
-          <div className="relative">
-            <svg
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#525f6d] dark:text-white/70"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-4-4" strokeLinecap="round" />
-            </svg>
+          <div className="flex items-center gap-2">
             <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Élément, type, action, utilisateur..."
-              className="w-full rounded-lg border border-[#525f6d] bg-[#f6f8fa] py-2.5 pl-9 pr-3 font-poppins text-[13px] text-[#525f6d] outline-none placeholder:text-[#9d9999] focus:bg-white dark:bg-white/5 dark:text-white/70 dark:placeholder:text-white/40"
+              type="date"
+              value={dateDebut}
+              onChange={(e) => {
+                setDateDebut(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Date de début"
+              className="rounded-lg border border-[#525f6d] bg-[#f6f8fa] px-3 py-2.5 font-poppins text-[13px] text-[#525f6d] outline-none dark:bg-white/5 dark:text-white/70"
+            />
+            <span className="font-poppins text-xs text-[#525f6d] dark:text-white/50">au</span>
+            <input
+              type="date"
+              value={dateFin}
+              onChange={(e) => {
+                setDateFin(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Date de fin"
+              className="rounded-lg border border-[#525f6d] bg-[#f6f8fa] px-3 py-2.5 font-poppins text-[13px] text-[#525f6d] outline-none dark:bg-white/5 dark:text-white/70"
             />
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={clearAll}
-          className="ml-auto flex items-center justify-center rounded-lg border border-[#525f6d] bg-[#f6f8fa] px-4 py-2.5 font-poppins text-sm text-[#525f6d] hover:bg-white dark:bg-white/5 dark:text-white/70"
-        >
-          Clear All
-        </button>
+        {filtresActifs && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="ml-auto flex items-center justify-center rounded-lg border border-[#525f6d] bg-[#f6f8fa] px-4 py-2.5 font-poppins text-sm text-[#525f6d] hover:bg-white dark:bg-white/5 dark:text-white/70"
+          >
+            Tout effacer
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -284,6 +451,7 @@ export function HistoriquePage() {
                     zebra={i % 2 === 1}
                     deplie={deplie === evt.id}
                     onToggle={() => setDeplie(deplie === evt.id ? null : evt.id)}
+                    onFiltrerEntite={filtrerParEntite}
                   />
                 ))}
 
@@ -305,12 +473,12 @@ export function HistoriquePage() {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-4 font-poppins text-xs text-[#003049]/90 dark:text-white/70">
             <p>
               {total === 0
-                ? "0 événements"
+                ? "0 événement"
                 : `${((page - 1) * parPage + 1)
                     .toString()
                     .padStart(2, "0")}-${Math.min(page * parPage, total)
                     .toString()
-                    .padStart(2, "0")} par ${total} événements`}
+                    .padStart(2, "0")} sur ${total} événements`}
             </p>
 
             <div className="flex items-center gap-2">
@@ -331,19 +499,42 @@ export function HistoriquePage() {
                 <IconChevronLeft />
               </button>
 
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPage(p)}
-                  className={`h-7 w-7 rounded-md font-medium ${
-                    p === page
-                      ? "bg-[#003049] text-white"
-                      : "text-[#003049] hover:bg-black/5 dark:text-white dark:hover:bg-white/10"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+              {/* Fenêtre glissante de 5 numéros (comme le composant
+                  Pagination) : des milliers d'événements ne doivent pas
+                  générer des centaines de boutons. */}
+              {(() => {
+                const première = Math.max(1, Math.min(page - 2, totalPages - 4));
+                const dernière = Math.min(totalPages, première + 4);
+                const pages: (number | "…")[] = [];
+                if (première > 1) pages.push(1);
+                if (première > 2) pages.push("…");
+                for (let p = première; p <= dernière; p++) pages.push(p);
+                if (dernière < totalPages - 1) pages.push("…");
+                if (dernière < totalPages) pages.push(totalPages);
+
+                return pages.map((item, idx) =>
+                  item === "…" ? (
+                    <span
+                      key={`gap-${idx}`}
+                      className="px-1 font-medium text-[#003049]/50 dark:text-white/40"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => setPage(item)}
+                      className={`h-7 w-7 rounded-md font-medium ${
+                        item === page
+                          ? "bg-[#003049] text-white"
+                          : "text-[#003049] hover:bg-black/5 dark:text-white dark:hover:bg-white/10"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ),
+                );
+              })()}
 
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
@@ -399,11 +590,13 @@ function EventRows({
   zebra,
   deplie,
   onToggle,
+  onFiltrerEntite,
 }: {
   evt: HistoriqueEvent;
   zebra: boolean;
   deplie: boolean;
   onToggle: () => void;
+  onFiltrerEntite: (evt: HistoriqueEvent) => void;
 }) {
   return (
     <>
@@ -448,7 +641,7 @@ function EventRows({
       {deplie && (
         <tr className="border-b border-[#dcdce1] border-[#dcdce1] last:border-none bg-[#f2f1f1] dark:border-white/10 dark:bg-white/5">
           <td colSpan={6} className="px-6 pb-5 pt-2">
-            <DetailEvent evt={evt} />
+            <DetailEvent evt={evt} onFiltrerEntite={() => onFiltrerEntite(evt)} />
           </td>
         </tr>
       )}
@@ -460,29 +653,94 @@ function EventRows({
 /*  Détail avant/après                                                         */
 /* -------------------------------------------------------------------------- */
 
-function DetailEvent({ evt }: { evt: HistoriqueEvent }) {
+function DetailEvent({
+  evt,
+  onFiltrerEntite,
+}: {
+  evt: HistoriqueEvent;
+  onFiltrerEntite?: () => void;
+}) {
+  // Bascule « seulement les changements » : par défaut, tous les champs
+  // restent visibles (comportement historique).
+  const [seulementChanges, setSeulementChanges] = useState(false);
+
   const avant = evt.avant ?? {};
   const apres = evt.apres ?? {};
   const champs: [string, unknown][] = [];
 
   for (const cle of new Set([...Object.keys(avant), ...Object.keys(apres)])) {
     if (cle === "impacts") continue;
-    if (avant[cle] !== apres[cle]) {
+    // Comparaison PROFONDE : les objets/tableaux venant du JSON sont toujours
+    // deux instances distinctes, « !== » les déclarerait toujours modifiés
+    // (faux positifs du type « Fonctionnalités: 3,7 → 3,7 »).
+    if (JSON.stringify(avant[cle]) !== JSON.stringify(apres[cle])) {
       champs.push([cle, apres[cle]]);
     }
   }
 
   const modifs = evt.action === "modification" ? champs : [];
 
+  // Surlignage : réservé aux modifications, sinon toute la ligne serait
+  // colorée (création = tout vert, suppression = tout rouge).
+  const changes =
+    evt.action === "modification" ? new Set(champs.map(([cle]) => cle)) : new Set<string>();
+
+  const nbChamps = new Set(
+    [...Object.keys(avant), ...Object.keys(apres)].filter((cle) => cle !== "impacts"),
+  ).size;
+  // La bascule n'a de sens que s'il y a des champs modifiés ET d'autres cachés.
+  const basculeDispo = champs.length > 0 && nbChamps > champs.length;
+
   return (
     <div className="rounded-xl border border-[#dcdce1] bg-white p-4 font-poppins dark:bg-[#131313]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {onFiltrerEntite && evt.entite_id != null && evt.nom_entite && (
+            <button
+              type="button"
+              onClick={onFiltrerEntite}
+              className="flex items-center gap-1.5 rounded-lg border border-[#dcdce1] bg-white px-3 py-1.5 text-xs font-semibold text-[#003049] hover:bg-[#e6e8f5] dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" strokeLinecap="round" />
+              </svg>
+              Historique de « {evt.nom_entite} »
+            </button>
+          )}
+        </div>
+
+        {basculeDispo && (
+          <button
+            type="button"
+            onClick={() => setSeulementChanges((v) => !v)}
+            className="rounded-lg border border-[#dcdce1] bg-white px-3 py-1.5 text-xs font-semibold text-[#525f6d] hover:bg-[#e6e8f5] dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:bg-white/10"
+          >
+            {seulementChanges
+              ? `Afficher tous les champs (${nbChamps})`
+              : `Afficher seulement les changements (${champs.length})`}
+          </button>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {evt.avant && (
           <div>
             <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-red-500">
               Avant
             </h3>
-            <SnapTable data={evt.avant} />
+            <SnapTable
+              data={evt.avant}
+              changes={changes}
+              ton="avant"
+              seulementChanges={seulementChanges}
+            />
           </div>
         )}
         {evt.apres && (
@@ -490,7 +748,12 @@ function DetailEvent({ evt }: { evt: HistoriqueEvent }) {
             <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-teal-600">
               Après
             </h3>
-            <SnapTable data={evt.apres} />
+            <SnapTable
+              data={evt.apres}
+              changes={changes}
+              ton="apres"
+              seulementChanges={seulementChanges}
+            />
           </div>
         )}
       </div>
@@ -509,9 +772,9 @@ function DetailEvent({ evt }: { evt: HistoriqueEvent }) {
                       {libelle(cle)}
                     </td>
                     <td className="py-1.5 text-[#003049] dark:text-white">
-                      {avant[cle] === undefined ? "—" : String(avant[cle])}
+                      {valeurLisible(avant[cle])}
                       <span className="mx-2 text-[#9d9999]">→</span>
-                      {String(valeur ?? "—")}
+                      {valeurLisible(valeur)}
                     </td>
                   </tr>
                 ))}
@@ -524,21 +787,50 @@ function DetailEvent({ evt }: { evt: HistoriqueEvent }) {
   );
 }
 
-function SnapTable({ data }: { data: Record<string, unknown> }) {
-  const lignes = Object.entries(data).filter(([cle]) => cle !== "impacts");
+function SnapTable({
+  data,
+  changes,
+  ton,
+  seulementChanges = false,
+}: {
+  data: Record<string, unknown>;
+  changes?: Set<string>;
+  ton?: "avant" | "apres";
+  seulementChanges?: boolean;
+}) {
+  const lignes = Object.entries(data).filter(
+    ([cle]) => cle !== "impacts" && (!seulementChanges || changes?.has(cle)),
+  );
   if (lignes.length === 0) {
     return <p className="text-sm text-[#9d9999]">—</p>;
   }
+  // Surlignage d'un champ modifié : rouge côté Avant, vert côté Après.
+  const surligne =
+    ton === "avant"
+      ? "bg-red-50 text-red-900 dark:bg-red-500/10 dark:text-red-300"
+      : "bg-green-50 text-green-900 dark:bg-green-500/10 dark:text-green-300";
   return (
     <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-      {lignes.map(([cle, valeur]) => (
-        <div key={cle} className="contents">
-          <dt className="text-[#9d9999]">{libelle(cle)}</dt>
-          <dd className="truncate text-[#003049] dark:text-white" title={String(valeur ?? "")}>
-            {valeur === null || valeur === undefined ? "—" : String(valeur)}
-          </dd>
-        </div>
-      ))}
+      {lignes.map(([cle, valeur]) => {
+        const change = changes?.has(cle);
+        return (
+          <div key={cle} className="contents">
+            <dt
+              className={`rounded px-1.5 ${change ? surligne : "text-[#9d9999]"}`}
+            >
+              {libelle(cle)}
+            </dt>
+            <dd
+              className={`truncate rounded px-1.5 ${
+                change ? `${surligne} font-semibold` : "text-[#003049] dark:text-white"
+              }`}
+              title={valeurLisible(valeur)}
+            >
+              {valeurLisible(valeur)}
+            </dd>
+          </div>
+        );
+      })}
     </dl>
   );
 }
@@ -562,11 +854,22 @@ function libelle(cle: string): string {
     etape_id: "Étape",
     process_id: "Processus",
     masque_id: "Masque",
+    fonctionnalite_id: "Fonctionnalité",
+    service_id: "Service",
+    procedure_id: "Procédure",
+    table_id: "Table",
+    utilisateur_id: "Utilisateur",
     base_donnees: "Base de données",
     type: "Type",
     role: "Rôle",
     blocked: "Bloqué",
     email: "Email",
+    password: "Mot de passe",
+    mot_de_passe: "Mot de passe",
+    avatar_key: "Photo",
+    image_key: "Image du masque",
+    diagramme_url: "Diagramme",
+    diagramme_type: "Type de diagramme",
     created_at: "Créé le",
     updated_at: "Modifié le",
   };
@@ -581,4 +884,47 @@ function formatDate(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Export CSV                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/** Échappe une cellule : guillemets doublés, tout entre guillemets. */
+function celluleCsv(valeur: string): string {
+  return `"${valeur.replace(/"/g, '""')}"`;
+}
+
+/** Date ISO → jj/mm/aaaa hh:mm (convention plus compacte pour un tableur). */
+function formatDateCsv(iso: string): string {
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** Valeur de snapshot lisible dans une cellule CSV. */
+function valeurLisible(v: unknown): string {
+  if (v === undefined || v === null || v === "") return "—";
+  if (typeof v === "boolean") return v ? "Oui" : "Non";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+/** Résumé « Champ: avant → après » d'une modification (vide sinon). */
+function resumeModifs(evt: HistoriqueEvent): string {
+  if (evt.action !== "modification") return "";
+  const avant = evt.avant ?? {};
+  const apres = evt.apres ?? {};
+  const parties: string[] = [];
+  for (const cle of new Set([...Object.keys(avant), ...Object.keys(apres)])) {
+    if (cle === "impacts") continue;
+    if (JSON.stringify(avant[cle]) !== JSON.stringify(apres[cle])) {
+      parties.push(`${libelle(cle)} : ${valeurLisible(avant[cle])} → ${valeurLisible(apres[cle])}`);
+    }
+  }
+  return parties.join(" | ");
 }

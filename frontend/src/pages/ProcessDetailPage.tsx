@@ -8,6 +8,8 @@ import { ConfirmModal } from "../components/ConfirmModal";
 import { ProcessSchema } from "../components/ProcessSchema";
 import { EtapeForm } from "../components/forms/EtapeForm";
 import { ProcessDetailSkeleton } from "../components/ui/pageSkeletons";
+import { useAuth } from "../hooks/useAuth";
+import { canDelete } from "../utils/roles";
 
 interface ProcessState {
   nom?: string;
@@ -32,6 +34,8 @@ function Chevron() {
 
 export function ProcessDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const peutSupprimer = canDelete(user?.role);
   const location = useLocation();
   const navigate = useNavigate();
   const processState = (location.state as ProcessState | null) ?? null;
@@ -297,21 +301,23 @@ export function ProcessDetailPage() {
                   <span className="shrink-0 font-poppins text-[11px] text-[#525f6d] dark:text-white/50">
                     {etape.masques.length} masque{etape.masques.length > 1 ? "s" : ""}
                   </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      // Le bouton est imbriqué dans un <Link> : sans ces deux
-                      // appels, le clic déclencherait aussi la navigation.
-                      e.preventDefault();
-                      e.stopPropagation();
-                      askDeleteEtape(etape);
-                    }}
-                    className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
+                  {peutSupprimer && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        // Le bouton est imbriqué dans un <Link> : sans ces deux
+                        // appels, le clic déclencherait aussi la navigation.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        askDeleteEtape(etape);
+                      }}
+                      className="shrink-0 rounded-lg p-1.5 text-[#525f6d] transition hover:bg-red-50 hover:text-red-600 dark:text-white/50 dark:hover:bg-red-500/10"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  )}
                   <Chevron />
                 </Link>
               </li>

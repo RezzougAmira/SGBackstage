@@ -7,6 +7,8 @@ import { ServiceForm } from "./forms/ServiceForm";
 import { ProcedureForm } from "./forms/ProcedureForm";
 import { ConfirmModal } from "./ConfirmModal";
 import { EntityHistory } from "./EntityHistory";
+import { useAuth } from "../hooks/useAuth";
+import { canDelete } from "../utils/roles";
 
 type ServiceFormData = Parameters<typeof servicesApi.create>[0];
 
@@ -19,6 +21,8 @@ type ServiceFormData = Parameters<typeof servicesApi.create>[0];
  * cliquer sur une procédure montre sa description et les tables qu'elle touche.
  */
 export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
+  const { user } = useAuth();
+  const peutSupprimer = canDelete(user?.role);
   const [fonctionnalites, setFonctionnalites] = useState<Fonctionnalite[]>([]);
   const [tousServices, setTousServices] = useState<Service[]>([]);
   const [toutesProcedures, setToutesProcedures] = useState<Procedure[]>([]);
@@ -419,13 +423,15 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                     >
                       Ajouter un service
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void supprimerFonctionnalite(f.id)}
-                      className="flex flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-red-200 px-3 py-1.5 font-poppins text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:hover:bg-red-500/10"
-                    >
-                      Supprimer
-                    </button>
+                    {peutSupprimer && (
+                      <button
+                        type="button"
+                        onClick={() => void supprimerFonctionnalite(f.id)}
+                        className="flex flex-1 items-center justify-center whitespace-nowrap rounded-lg border border-red-200 px-3 py-1.5 font-poppins text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-500/30 dark:hover:bg-red-500/10"
+                      >
+                        Supprimer
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -998,12 +1004,16 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
               description:
                 "Le service reste dans la base : les autres fonctionnalités et masques qui l'appellent continuent de l'utiliser.",
             },
-            {
-              value: "supprimer",
-              label: "Le supprimer définitivement de la base",
-              description:
-                "Le service est effacé partout (autres fonctionnalités, masques, liaisons procédures).",
-            },
+            ...(peutSupprimer
+              ? [
+                  {
+                    value: "supprimer" as const,
+                    label: "Le supprimer définitivement de la base",
+                    description:
+                      "Le service est effacé partout (autres fonctionnalités, masques, liaisons procédures).",
+                  },
+                ]
+              : []),
           ],
         }}
         onConfirm={confirmerRetraitService}
@@ -1041,12 +1051,16 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
               description:
                 "La procédure reste dans la base : les autres services qui l'appellent continuent de l'utiliser.",
             },
-            {
-              value: "supprimer",
-              label: "La supprimer définitivement de la base",
-              description:
-                "La procédure est effacée partout (autres services, masques, tables).",
-            },
+            ...(peutSupprimer
+              ? [
+                  {
+                    value: "supprimer" as const,
+                    label: "La supprimer définitivement de la base",
+                    description:
+                      "La procédure est effacée partout (autres services, masques, tables).",
+                  },
+                ]
+              : []),
           ],
         }}
         onConfirm={confirmerRetraitProcedure}

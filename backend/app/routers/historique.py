@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -92,3 +92,37 @@ def list_historique(
         "par_page": par_page,
         "evenements": [_serialiser(h) for h in lignes],
     }
+
+
+@router.get("/utilisateurs")
+def utilisateurs_du_journal(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Utilisateurs déjà présents dans le journal, pour le filtre.
+
+    Contrairement à GET /api/auth/users (réservé aux admins), cette route est
+    ouverte à tous les rôles : la page Journal est accessible à tous, seul le
+    choix des utilisateurs à afficher doit y être disponible.
+    """
+    lignes = (
+        db.query(
+            User.id,
+            User.name,
+            User.avatar_key,
+            func.count(Historique.id).label("nb"),
+        )
+        .join(Historique, Historique.utilisateur_id == User.id)
+        .group_by(User.id, User.name, User.avatar_key)
+        .order_by(User.name)
+        .all()
+    )
+    return [
+        {
+            "id": uid,
+            "name": name,
+            "avatar_key": avatar_key,
+            "evenements": nb,
+        }
+        for uid, name, avatar_key, nb in lignes
+    ]

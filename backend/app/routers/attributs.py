@@ -5,7 +5,7 @@ from ..database import get_db
 from ..models.attribut import Attribut
 from ..models.user import User
 from ..schemas.attribut import AttributCreate, AttributResponse
-from ..utils.deps import get_current_user
+from ..utils.deps import require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/tables/{table_id}/attributs", tags=["attributs"])
@@ -22,7 +22,7 @@ def create_attribut(
     table_id: int,
     attribut: AttributCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_attribut = Attribut(**attribut.model_dump())
     db.add(db_attribut)
@@ -42,7 +42,7 @@ def update_attribut(
     attribut_id: int,
     attribut: AttributCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_attribut = db.query(Attribut).filter(
         Attribut.id == attribut_id,
@@ -70,7 +70,7 @@ def delete_attribut(
     table_id: int,
     attribut_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_deleter),
 ):
     db_attribut = db.query(Attribut).filter(
         Attribut.id == attribut_id,

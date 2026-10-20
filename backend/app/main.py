@@ -104,6 +104,10 @@ def apply_schema_patches() -> None:
         """,
         "CREATE INDEX IF NOT EXISTS ix_historique_created_at ON historique(created_at)",
         "CREATE INDEX IF NOT EXISTS ix_historique_type_entite ON historique(type_entite, entite_id)",
+        # Rôles : l'ancien rôle unique « developer » devient « editor » (il
+        # garde la suppression), un rôle absent devient « contributor ».
+        "UPDATE users SET role = 'editor' WHERE role = 'developer'",
+        "UPDATE users SET role = 'contributor' WHERE role IS NULL OR role = ''",
     ]
     with engine.begin() as conn:
         for statement in patches:
@@ -119,10 +123,27 @@ app = FastAPI(
     version="1.0.0"
 )
 
+def _origines_autorisees() -> list[str]:
+    """Origines CORS acceptées.
+
+    En développement, tout port localhost est accepté, car Vite bascule
+    automatiquement sur un autre port si le 5173 est déjà pris. En
+    production, les origines déployées (Vercel, etc.) sont déclarées dans
+    la variable d'environnement ALLOWED_ORIGINS, séparées par des virgules.
+    """
+    origines = ["http://localhost:5173", "http://localhost:3000"]
+    for origine in settings.ALLOWED_ORIGINS.split(","):
+        origine = origine.strip().rstrip("/")
+        if origine and origine not in origines:
+            origines.append(origine)
+    return origines
+
+
 # Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=_origines_autorisees(),
+    allow_origin_regex=r"http://localhost:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -164,8 +185,6 @@ def get_stats():
     from sqlalchemy import func
 
     from .database import SessionLocal
-    from .models.archive import Archive
-    from .models.attribut import Attribut
     from .models.domaine import Domaine
     from .models.etape import Etape
     from .models.fonctionnalite import Fonctionnalite
@@ -174,7 +193,6 @@ def get_stats():
     from .models.procedure import ProcedureStockee
     from .models.process import Process
     from .models.service import Service
-    from .models.table import TableInfo
     from .models.user import User
 
     db = SessionLocal()
@@ -242,7 +260,7 @@ def get_stats():
         recents = (
             db.query(Historique)
             .order_by(Historique.created_at.desc(), Historique.id.desc())
-            .limit(8)
+            .limit(15)
             .all()
         )
         evenements_recents = [
@@ -251,6 +269,7 @@ def get_stats():
                 "utilisateur": {"id": h.utilisateur.id, "name": h.utilisateur.name}
                 if h.utilisateur
                 else None,
+                "utilisateur_id": h.utilisateur_id,
                 "action": h.action,
                 "type_entite": h.type_entite,
                 "entite_id": h.entite_id,
@@ -268,9 +287,6 @@ def get_stats():
             "fonctionnalites": db.query(Fonctionnalite).count(),
             "services": db.query(Service).count(),
             "procedures": db.query(ProcedureStockee).count(),
-            "tables": db.query(TableInfo).count(),
-            "attributs": db.query(Attribut).count(),
-            "archives": db.query(Archive).count(),
             "utilisateurs": db.query(User).count(),
             "evenements": db.query(Historique).count(),
             "activite_14j": activite_14j,

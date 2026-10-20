@@ -8,8 +8,9 @@ from ..models.procedure import ProcedureStockee, ServiceProcedure
 from ..models.user import User
 from ..schemas.service import ServiceCreate, ServiceResponse
 from ..schemas.procedure import ProcedureCreate, ProcedureResponse
+from .procedures import _serialiser as _serialiser_procedure
 from ..utils import impact
-from ..utils.deps import get_current_user
+from ..utils.deps import require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/services", tags=["services"])
@@ -27,12 +28,44 @@ def _procedures_du_service(db: Session, service_id: int) -> List[ProcedureStocke
     ]
 
 
+def _serialiser(service: Service) -> ServiceResponse:
+    """Convertit un service en réponse API, en incluant ses rattachements :
+    procédures, masques qui l'appellent et fonctionnalités qui l'utilisent."""
+    return ServiceResponse(
+        id=service.id,
+        nom=service.nom,
+        methode_http=service.methode_http,
+        url=service.url,
+        input_desc=service.input_desc,
+        output_desc=service.output_desc,
+        controleur=service.controleur,
+        collection=service.collection,
+        created_at=service.created_at,
+        updated_at=service.updated_at,
+        procedures=[
+            {"id": lien.procedure.id, "nom": lien.procedure.nom}
+            for lien in service.procedures
+            if lien.procedure
+        ],
+        masques=[
+            {"id": lien.masque.id, "nom": lien.masque.nom}
+            for lien in service.masques
+            if lien.masque
+        ],
+        fonctionnalites=[
+            {"id": lien.fonctionnalite.id, "nom": lien.fonctionnalite.titre}
+            for lien in service.fonctionnalites
+            if lien.fonctionnalite
+        ],
+    )
+
+
 @router.get("/{service_id}/procedures", response_model=List[ProcedureResponse])
 def list_procedures_du_service(service_id: int, db: Session = Depends(get_db)):
     service = db.query(Service).filter(Service.id == service_id).first()
     if not service:
         raise HTTPException(status_code=404, detail="Service non trouvé")
-    return _procedures_du_service(db, service_id)
+    return [_serialiser_procedure(p) for p in _procedures_du_service(db, service_id)]
 
 
 @router.post(
@@ -42,7 +75,7 @@ def creer_et_attacher_procedure(
     service_id: int,
     payload: ProcedureCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     """Crée une procédure stockée et la rattache au service."""
     service = db.query(Service).filter(Service.id == service_id).first()
@@ -82,7 +115,7 @@ def attacher_procedure(
     service_id: int,
     procedure_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     """Rattache une procédure stockée existante au service."""
     service = db.query(Service).filter(Service.id == service_id).first()
@@ -124,7 +157,7 @@ def detacher_procedure(
     service_id: int,
     procedure_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     """Détache la procédure du service, sans la supprimer."""
     liaison = (
@@ -153,7 +186,7 @@ def detacher_procedure(
 @router.get("/", response_model=List[ServiceResponse])
 def list_services(db: Session = Depends(get_db)):
     services = db.query(Service).all()
-    return [ServiceResponse.from_orm(s) for s in services]
+    return [_serialiser(s) for s in services]
 
 
 @router.get("/{service_id}", response_model=ServiceResponse)
@@ -161,14 +194,14 @@ def get_service(service_id: int, db: Session = Depends(get_db)):
     service = db.query(Service).filter(Service.id == service_id).first()
     if not service:
         raise HTTPException(status_code=404, detail="Service non trouvé")
-    return ServiceResponse.from_orm(service)
+    return _serialiser(service)
 
 
 @router.post("/", response_model=ServiceResponse, status_code=201)
 def create_service(
     service: ServiceCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_service = Service(**service.model_dump())
     db.add(db_service)
@@ -179,7 +212,7 @@ def create_service(
         entite_id=db_service.id, nom_entite=db_service.nom,
         apres=snapshot(db_service),
     )
-    return db_service
+    return _serialiser(db_service)
 
 
 @router.put("/{service_id}", response_model=ServiceResponse)
@@ -187,7 +220,7 @@ def update_service(
     service_id: int,
     service: ServiceCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_service = db.query(Service).filter(Service.id == service_id).first()
     if not db_service:
@@ -204,7 +237,7 @@ def update_service(
         entite_id=db_service.id, nom_entite=db_service.nom,
         avant=avant, apres=snapshot(db_service),
     )
-    return db_service
+    return _serialiser(db_service)
 
 
 @router.post("/{service_id}/assign-masque/{masque_id}", response_model=ServiceResponse)
@@ -212,7 +245,7 @@ def assign_service_to_masque(
     service_id: int,
     masque_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_service = db.query(Service).filter(Service.id == service_id).first()
     if not db_service:
@@ -243,7 +276,7 @@ def assign_service_to_masque(
 def delete_service(
     service_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_deleter),
 ):
     """Supprime le service de la base, avec tous ses liens.
     """

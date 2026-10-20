@@ -7,7 +7,7 @@ from ..models.etape import Etape
 from ..models.user import User
 from ..schemas.process import ProcessCreate, ProcessUpdate, ProcessResponse
 from ..utils import impact
-from ..utils.deps import get_current_user
+from ..utils.deps import require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/domaines/{domaine_id}/processes", tags=["processes"])
@@ -42,7 +42,7 @@ def create_process(
     domaine_id: int,
     process: ProcessCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     # Deux process portent le même nom dans un même domaine
     existing = (
@@ -74,7 +74,7 @@ def update_process(
     process_id: int,
     process: ProcessUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_process = db.query(Process).filter(
         Process.id == process_id,
@@ -102,7 +102,7 @@ def delete_process(
     domaine_id: int,
     process_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_deleter),
 ):
     db_process = db.query(Process).filter(
         Process.id == process_id,

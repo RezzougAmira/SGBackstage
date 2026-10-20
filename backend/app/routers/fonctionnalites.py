@@ -8,7 +8,7 @@ from ..models.service import Service
 from ..models.procedure import ServiceProcedure, ProcedureStockee
 from ..models.table import ProcedureTable
 from ..models.user import User
-from ..utils.deps import get_current_user
+from ..utils.deps import require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 from ..schemas.fonctionnalite import (
     FonctionnaliteCreate,
@@ -127,7 +127,7 @@ def create_fonctionnalite(
     masque_id: int,
     payload: FonctionnaliteCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     masque = db.query(Masque).filter(Masque.id == masque_id).first()
     if not masque:
@@ -172,7 +172,7 @@ def update_fonctionnalite(
     fonctionnalite_id: int,
     payload: FonctionnaliteUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     fonctionnalite = db.query(Fonctionnalite).filter(
         Fonctionnalite.id == fonctionnalite_id
@@ -210,7 +210,7 @@ def update_fonctionnalite(
 def delete_fonctionnalite(
     fonctionnalite_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_deleter),
 ):
     """Supprime la fonctionnalité et ses liaisons.
 
@@ -241,7 +241,7 @@ def add_service(
     fonctionnalite_id: int,
     service_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     """Rattache un service existant à la fonctionnalité.
 
@@ -289,7 +289,7 @@ def remove_service(
     fonctionnalite_id: int,
     service_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     """Détache le service de la fonctionnalité, sans supprimer le service."""
     liaison = (

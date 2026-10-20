@@ -5,7 +5,7 @@ from ..database import get_db
 from ..models.archive import Archive
 from ..models.user import User
 from ..schemas.archive import ArchiveCreate, ArchiveResponse
-from ..utils.deps import get_current_user
+from ..utils.deps import require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/archives", tags=["archives"])
@@ -34,7 +34,7 @@ def get_archive(archive_id: int, db: Session = Depends(get_db)):
 def create_archive(
     archive: ArchiveCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     existing = db.query(Archive).filter(Archive.identifiant == archive.identifiant).first()
     if existing:

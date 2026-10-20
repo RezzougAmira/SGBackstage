@@ -9,7 +9,7 @@ from ..models.service import MasqueService, Service
 from ..models.procedure import ProcedureStockee, ServiceProcedure
 from ..models.user import User
 from ..utils import impact
-from ..utils.deps import get_current_user
+from ..utils.deps import require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 from ..schemas.masque import (
     MasqueCreate,
@@ -41,12 +41,39 @@ def _validate_code(code: str) -> None:
         )
 
 
+def _serialiser(masque: Masque, db: Session) -> MasqueResponse:
+    """Convertit un masque en réponse API, en incluant ses rattachements :
+    étapes qui le portent, services appelés, fonctionnalités offertes."""
+    return MasqueResponse(
+        id=masque.id,
+        code=masque.code,
+        nom=masque.nom,
+        description=masque.description,
+        image_key=masque.image_key,
+        created_at=masque.created_at,
+        updated_at=masque.updated_at,
+        etapes=[
+            {"id": e.id, "nom": impact.libelle_etape(e)}
+            for e in impact.etapes_du_masque(db, masque.id)
+        ],
+        services=[
+            {"id": lien.service.id, "nom": lien.service.nom}
+            for lien in masque.services
+            if lien.service
+        ],
+        fonctionnalites=[
+            {"id": f.id, "nom": f.titre}
+            for f in masque.fonctionnalites
+        ],
+    )
+
+
 @router.get("/", response_model=List[MasqueResponse])
 def list_masques(search: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(Masque)
     if search:
         query = query.filter(Masque.code.ilike(f"%{search}%"))
-    return [MasqueResponse.from_orm(m) for m in query.all()]
+    return [_serialiser(m, db) for m in query.all()]
 
 
 @router.get("/{masque_id}", response_model=MasqueResponse)
@@ -54,14 +81,14 @@ def get_masque(masque_id: int, db: Session = Depends(get_db)):
     masque = db.query(Masque).filter(Masque.id == masque_id).first()
     if not masque:
         raise HTTPException(status_code=404, detail="Masque non trouvé")
-    return MasqueResponse.from_orm(masque)
+    return _serialiser(masque, db)
 
 
 @router.post("/", response_model=MasqueResponse, status_code=201)
 def create_masque(
     masque: MasqueCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     _validate_code(masque.code)
 
@@ -81,7 +108,7 @@ def create_masque(
         entite_id=db_masque.id, nom_entite=f"{db_masque.code} — {db_masque.nom}",
         apres=snapshot(db_masque),
     )
-    return db_masque
+    return _serialiser(db_masque, db)
 
 
 @router.put("/{masque_id}", response_model=MasqueResponse)
@@ -89,7 +116,7 @@ def update_masque(
     masque_id: int,
     masque: MasqueCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     db_masque = db.query(Masque).filter(Masque.id == masque_id).first()
     if not db_masque:
@@ -106,7 +133,7 @@ def update_masque(
         entite_id=db_masque.id, nom_entite=f"{db_masque.code} — {db_masque.nom}",
         avant=avant, apres=snapshot(db_masque),
     )
-    return db_masque
+    return _serialiser(db_masque, db)
 
 
 @router.get("/{masque_id}/impact", response_model=MasqueImpact)
@@ -147,7 +174,7 @@ def delete_masque(
     masque_id: int,
     supprimer_services: bool = False,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_deleter),
 ):
     """Supprime un masque, et ses services seulement si l'utilisateur le demande.
 
@@ -249,7 +276,7 @@ def create_masque_pour_etape(
     etape_id: int,
     masque: MasqueEtapeCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_writer),
 ):
     """Crée un masque et le rattache à l'étape, service appelé compris.
 
@@ -308,4 +335,4 @@ def create_masque_pour_etape(
             entite_id=db_service.id, nom_entite=db_service.nom,
             apres={"masque_id": db_masque.id, "service_id": db_service.id},
         )
-    return db_masque
+    return _serialiser(db_masque, db)

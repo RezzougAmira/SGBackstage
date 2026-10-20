@@ -6,6 +6,7 @@ from ..models.user import User
 from ..schemas.user import (
     UserCreate,
     UserLogin,
+    UserPasswordReset,
     UserResponse,
     UserUpdate,
     UserAdminUpdate,
@@ -13,6 +14,7 @@ from ..schemas.user import (
 )
 from ..utils.auth import get_password_hash, verify_password, create_access_token
 from ..utils.deps import get_current_user, require_admin
+from ..utils.roles import ROLE_CONTRIBUTOR, VALID_ROLES
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -75,11 +77,13 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         )
 
     # Créer l'utilisateur
+    # L'inscription est publique : le rôle choisi par le client est ignoré, on
+    # ne laisse pas quelqu'un s'octroyer « admin » depuis /api/auth/register.
     db_user = User(
         email=user.email,
         password=get_password_hash(user.password),
         name=user.name,
-        role=user.role
+        role=ROLE_CONTRIBUTOR
     )
     db.add(db_user)
     db.commit()
@@ -178,10 +182,10 @@ def update_user_by_admin(
         user.email = nouvel_email
 
     if "role" in donnees and donnees["role"]:
-        if donnees["role"] not in ("admin", "developer"):
+        if donnees["role"] not in VALID_ROLES:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Rôle invalide : utilisez admin ou developer",
+                detail="Rôle invalide : utilisez admin, editor ou contributor",
             )
         # Se dégrader soi-même d'admin à developer retirerait au compte le
         # contrôle des utilisateurs : on l'interdit.
@@ -268,6 +272,36 @@ def unblock_user(
         db, utilisateur=admin, action="modification", type_entite="user",
         entite_id=user.id, nom_entite=user.name,
         avant=avant, apres=snapshot(user, SANS_PASSWORD),
+    )
+    return user
+
+
+@router.post("/users/{user_id}/password", response_model=UserResponse)
+def reset_user_password(
+    user_id: int,
+    payload: UserPasswordReset,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Réinitialise le mot de passe d'un compte (action administrateur).
+
+    Sert à débloquer un compte dont on a perdu le mot de passe. Le hash
+    remplace l'ancien : le compte utilisera le nouveau mot de passe à sa
+    prochaine connexion. Le mot de passe (hashé) ne figure jamais au journal —
+    on n'enregistre que le fait du changement.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+
+    user.password = get_password_hash(payload.password)
+    db.commit()
+    db.refresh(user)
+    enregistrer_historique(
+        db, utilisateur=admin, action="modification", type_entite="user",
+        entite_id=user.id, nom_entite=user.name,
+        avant={"mot_de_passe": "••••••"},
+        apres={"mot_de_passe": "réinitialisé"},
     )
     return user
 

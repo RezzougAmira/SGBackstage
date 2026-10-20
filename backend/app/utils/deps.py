@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.user import User
 from .auth import TokenError, decode_access_token
+from .roles import ROLES_ECRITURE, ROLES_SUPPRESSION, ROLE_ADMIN
 
 security = HTTPBearer(auto_error=False)
 
@@ -51,9 +52,36 @@ async def require_admin(current_user: User = Depends(get_current_user)) -> User:
     permettent de modifier le rôle et le blocage : sans cette dépendance, un
     developer authentifié pourrait les appeler directement.
     """
-    if current_user.role != "admin":
+    if current_user.role != ROLE_ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Réservé aux administrateurs",
+        )
+    return current_user
+
+
+async def require_writer(current_user: User = Depends(get_current_user)) -> User:
+    """Autorise toute écriture : créer, modifier, rattacher, réordonner.
+
+    Accessible à l'admin, à l'éditeur et au contributeur. Le contributeur est
+    inclus car « modifier sans supprimer » reste un droit d'écriture.
+    """
+    if current_user.role not in ROLES_ECRITURE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Action réservée aux contributeurs, éditeurs et administrateurs",
+        )
+    return current_user
+
+
+async def require_deleter(current_user: User = Depends(get_current_user)) -> User:
+    """Autorise la suppression d'une entité du référentiel.
+
+    Réservée à l'admin et à l'éditeur : le contributeur ne peut pas supprimer.
+    """
+    if current_user.role not in ROLES_SUPPRESSION:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="La suppression est réservée aux éditeurs et administrateurs",
         )
     return current_user

@@ -8,6 +8,8 @@ import { ConfirmModal } from "../components/ConfirmModal";
 import { EtapeDetails } from "../components/EtapeDetails";
 import { MasqueForm, MasqueFormData } from "../components/forms/MasqueForm";
 import { DetailSkeleton } from "../components/ui/pageSkeletons";
+import { useAuth } from "../hooks/useAuth";
+import { canDelete } from "../utils/roles";
 
 interface EtapePageState {
   processNom?: string;
@@ -16,6 +18,8 @@ interface EtapePageState {
 
 export function EtapeDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const peutSupprimer = canDelete(user?.role);
   const location = useLocation();
   const pageState = (location.state as EtapePageState | null) ?? null;
   const [etape, setEtape] = useState<EtapeDetail | null>(null);
@@ -329,7 +333,7 @@ export function EtapeDetailPage() {
         radio={{
           label: "Portée de la suppression",
           value: portee,
-          onChange: (v) => {
+          onChange: (v: "detacher" | "supprimer") => {
             setPortee(v);
             setSupprimerServices(false);
           },
@@ -340,12 +344,15 @@ export function EtapeDetailPage() {
               description:
                 "Le masque reste dans la base et continue d'exister dans les autres étapes.",
             },
-            {
-              value: "supprimer",
-              label: "Le supprimer définitivement de la base",
-              description:
-                "Le masque est effacé de toutes les étapes.",
-            },
+            ...(peutSupprimer
+              ? [
+                  {
+                    value: "supprimer" as const,
+                    label: "Le supprimer définitivement de la base",
+                    description: "Le masque est effacé de toutes les étapes.",
+                  },
+                ]
+              : []),
           ],
         }}
         radio2={

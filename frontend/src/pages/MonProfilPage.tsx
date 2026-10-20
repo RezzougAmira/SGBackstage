@@ -4,6 +4,7 @@ import { useProtectedImage } from "../hooks/useProtectedImage";
 import { authApi } from "../api/auth";
 import { uploadApi } from "../api/upload";
 import type { User } from "../types";
+import { roleLabel } from "../utils/roles";
 
 /**
  * Page « Mon profil ».
@@ -244,7 +245,7 @@ export function MonProfilPage() {
                 Rôle
               </p>
               <p className="mt-1 font-poppins text-sm text-[#0c1d31] dark:text-white">
-                {user?.role}
+                {roleLabel(user?.role)}
               </p>
             </div>
           </div>

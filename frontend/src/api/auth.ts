@@ -34,4 +34,8 @@ export const authApi = {
   blockUser: (id: number) => api.post<User>(`/api/auth/users/${id}/block`),
 
   unblockUser: (id: number) => api.post<User>(`/api/auth/users/${id}/unblock`),
+
+  /** Réinitialisation du mot de passe d'un compte (réservé admin). */
+  resetPassword: (id: number, password: string) =>
+    api.post<User>(`/api/auth/users/${id}/password`, { password }),
 };
