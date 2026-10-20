@@ -108,6 +108,30 @@ export function EntityHistory({
   const [events, setEvents] = useState<HistoriqueEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  // Dossier Word (fiche + journal complet) : assemblé côté serveur, puis
+  // téléchargé via une URL d'objet temporaire.
+  const handleExportDossier = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const blob = await historiqueApi.exportDossier(typeEntite, entiteId);
+      const url = URL.createObjectURL(blob);
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = `dossier-${title}.docx`;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Erreur:", e);
+      window.alert("Le téléchargement du dossier a échoué. Réessayez.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const filters = useMemo<HistoriqueFilters>(
     () => ({
@@ -149,21 +173,42 @@ export function EntityHistory({
               {title} — {events.length} événement{events.length > 1 ? "s" : ""}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e6e8f5] dark:text-white/50 dark:hover:bg-white/10"
-          >
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportDossier}
+              disabled={exporting}
+              title="Télécharger la fiche et le journal complet de cet élément (Word)"
+              className="flex items-center gap-1.5 rounded-lg border border-[#dcdce1] bg-white px-3 py-1.5 font-poppins text-xs font-semibold text-[#003049] transition hover:bg-[#e6e8f5] disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
             >
-              <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path d="M12 3v12m0 0l-4-4m4 4l4-4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" />
+              </svg>
+              {exporting ? "Génération…" : "Télécharger le dossier"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-[#525f6d] transition hover:bg-[#e6e8f5] dark:text-white/50 dark:hover:bg-white/10"
+            >
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {error && (
