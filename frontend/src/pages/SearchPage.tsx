@@ -65,7 +65,7 @@ export function SearchPage() {
                 {results.masques.map((m) => (
                   <Link
                     key={m.id}
-                    to={`/masques/${m.id}`}
+                    to={`/masques?search=${encodeURIComponent(m.code)}`}
                     className="block p-3 hover:bg-gray-50 rounded-lg"
                   >
                     <span className="font-medium text-blue-600">{m.code}</span> — {m.nom}
@@ -82,7 +82,7 @@ export function SearchPage() {
                 {results.services.map((s) => (
                   <Link
                     key={s.id}
-                    to={`/services/${s.id}`}
+                    to={`/services?search=${encodeURIComponent(s.nom)}`}
                     className="block p-3 hover:bg-gray-50 rounded-lg"
                   >
                     <span className="font-medium text-blue-600">{s.nom}</span>

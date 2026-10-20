@@ -9,6 +9,7 @@ import { EntityHistory } from "../components/EntityHistory";
 import { useProtectedImage } from "../hooks/useProtectedImage";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
+import { lireSearchParam } from "../utils/url";
 
 const PAGE_SIZE = 10;
 
@@ -150,7 +151,9 @@ export function MasquesPage() {
   const peutSupprimer = canDelete(user?.role);
   const [masques, setMasques] = useState<Masque[]>([]);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
+  // Recherche pré-remplie depuis l'URL : la recherche globale renvoie ici
+  // avec ?search=CE2100 pour arriver directement sur l'élément.
+  const [query, setQuery] = useState(() => lireSearchParam());
   const [showModal, setShowModal] = useState(false);
   const [edit, setEdit] = useState<Masque | null>(null);
   const [del, setDel] = useState<Masque | null>(null);

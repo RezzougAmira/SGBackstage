@@ -5,14 +5,16 @@ from ..database import get_db
 from ..models.table import TableInfo
 from ..models.user import User
 from ..schemas.table import TableCreate, TableResponse
-from ..utils.deps import require_deleter, require_writer
+from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/tables", tags=["tables"])
 
 
 @router.get("/", response_model=List[TableResponse])
-def list_tables(db: Session = Depends(get_db)):
+def list_tables(db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     tables = db.query(TableInfo).all()
     result = []
     for table in tables:
@@ -23,7 +25,9 @@ def list_tables(db: Session = Depends(get_db)):
 
 
 @router.get("/{table_id}", response_model=TableResponse)
-def get_table(table_id: int, db: Session = Depends(get_db)):
+def get_table(table_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     table = db.query(TableInfo).filter(TableInfo.id == table_id).first()
     if not table:
         raise HTTPException(status_code=404, detail="Table non trouvée")

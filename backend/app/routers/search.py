@@ -1,16 +1,22 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from ..database import get_db
 from ..models.masque import Masque
 from ..models.service import Service
 from ..models.table import TableInfo
+from ..models.user import User
+from ..utils.deps import get_current_user
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 
 @router.get("/")
-def search(query: str, db: Session = Depends(get_db)):
+def search(
+    query: str = Query(..., min_length=1, max_length=100),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     results = {
         "masques": [],
         "services": [],

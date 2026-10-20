@@ -5,20 +5,24 @@ from ..database import get_db
 from ..models.archive import Archive
 from ..models.user import User
 from ..schemas.archive import ArchiveCreate, ArchiveResponse
-from ..utils.deps import require_writer
+from ..utils.deps import get_current_user, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/archives", tags=["archives"])
 
 
 @router.get("/", response_model=List[ArchiveResponse])
-def list_archives(db: Session = Depends(get_db)):
+def list_archives(db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     archives = db.query(Archive).order_by(Archive.date_push.desc()).all()
     return [ArchiveResponse.from_orm(a) for a in archives]
 
 
 @router.get("/{archive_id}")
-def get_archive(archive_id: int, db: Session = Depends(get_db)):
+def get_archive(archive_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     archive = db.query(Archive).filter(Archive.id == archive_id).first()
     if not archive:
         raise HTTPException(status_code=404, detail="Archive non trouvée")

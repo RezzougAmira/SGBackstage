@@ -8,6 +8,7 @@ import { ServiceForm } from "../components/forms/ServiceForm";
 import { EntityHistory } from "../components/EntityHistory";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
+import { lireSearchParam } from "../utils/url";
 
 const PAGE_SIZE = 10;
 
@@ -289,7 +290,7 @@ export function ServicesPage() {
   const peutSupprimer = canDelete(user?.role);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => lireSearchParam());
   const [detail, setDetail] = useState<Service | null>(null);
   const [historyService, setHistoryService] = useState<Service | null>(null);
   const [edit, setEdit] = useState<Service | null>(null);

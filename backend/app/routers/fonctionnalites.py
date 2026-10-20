@@ -8,7 +8,7 @@ from ..models.service import Service
 from ..models.procedure import ServiceProcedure, ProcedureStockee
 from ..models.table import ProcedureTable
 from ..models.user import User
-from ..utils.deps import require_deleter, require_writer
+from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 from ..schemas.fonctionnalite import (
     FonctionnaliteCreate,
@@ -102,7 +102,9 @@ def _serialiser(fonctionnalite: Fonctionnalite) -> dict:
 
 
 @router.get("/masque/{masque_id}", response_model=List[FonctionnaliteResponse])
-def list_par_masque(masque_id: int, db: Session = Depends(get_db)):
+def list_par_masque(masque_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     """Fonctionnalités d'un masque, dans l'ordre saisi."""
     fonctionnalites = (
         db.query(Fonctionnalite)
@@ -115,7 +117,9 @@ def list_par_masque(masque_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{fonctionnalite_id}", response_model=FonctionnaliteResponse)
-def get_fonctionnalite(fonctionnalite_id: int, db: Session = Depends(get_db)):
+def get_fonctionnalite(fonctionnalite_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     fonctionnalite = _charger_avec(db, fonctionnalite_id)
     if not fonctionnalite:
         raise HTTPException(status_code=404, detail="Fonctionnalité non trouvée")

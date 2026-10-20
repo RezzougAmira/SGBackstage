@@ -6,7 +6,7 @@ from ..models.procedure import ProcedureStockee
 from ..models.user import User
 from ..schemas.procedure import ProcedureCreate, ProcedureResponse
 from ..utils import impact
-from ..utils.deps import require_deleter, require_writer
+from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/procedures", tags=["procedures"])
@@ -35,13 +35,17 @@ def _serialiser(procedure: ProcedureStockee) -> ProcedureResponse:
 
 
 @router.get("/", response_model=List[ProcedureResponse])
-def list_procedures(db: Session = Depends(get_db)):
+def list_procedures(db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     procedures = db.query(ProcedureStockee).all()
     return [_serialiser(p) for p in procedures]
 
 
 @router.get("/{procedure_id}", response_model=ProcedureResponse)
-def get_procedure(procedure_id: int, db: Session = Depends(get_db)):
+def get_procedure(procedure_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     procedure = db.query(ProcedureStockee).filter(ProcedureStockee.id == procedure_id).first()
     if not procedure:
         raise HTTPException(status_code=404, detail="Procédure non trouvée")

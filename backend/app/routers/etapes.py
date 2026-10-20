@@ -11,7 +11,7 @@ from ..models.masque import EtapeMasque
 from ..models.process import Process
 from ..models.user import User
 from ..utils import impact
-from ..utils.deps import require_deleter, require_writer
+from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 from ..utils.export_docx import build_etape_document, build_process_document
 from ..schemas.etape import (
@@ -89,7 +89,9 @@ def _build_detail(etape: Etape) -> EtapeDetailResponse:
 
 
 @router.get("/", response_model=List[EtapeResponse])
-def list_etapes(process_id: int, db: Session = Depends(get_db)):
+def list_etapes(process_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     etapes = db.query(Etape).filter(Etape.process_id == process_id).order_by(Etape.ordre).all()
     return [EtapeResponse.from_orm(e) for e in etapes]
 
@@ -136,12 +138,16 @@ def _impact_masques(db: Session, etape: Etape) -> List[EtapeMasqueImpact]:
 
 
 @router.get("/{etape_id}", response_model=EtapeDetailResponse)
-def get_etape(process_id: int, etape_id: int, db: Session = Depends(get_db)):
+def get_etape(process_id: int, etape_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     return _build_detail(_charger_etape(db, process_id, etape_id))
 
 
 @etapes_standalone_router.get("/etapes/{etape_id}/impact", response_model=EtapeImpact)
-def get_etape_impact(etape_id: int, db: Session = Depends(get_db)):
+def get_etape_impact(etape_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     """Ce que la suppression de l'étape va coûter, pour la confirmation."""
     etape = db.query(Etape).filter(Etape.id == etape_id).first()
     if not etape:
@@ -202,6 +208,29 @@ def create_etape(
         apres=snapshot(db_etape),
     )
     return db_etape
+
+
+@router.put("/reorder")
+def reorder_etapes(
+    process_id: int,
+    reorder: EtapeReorder,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_writer),
+):
+    for index, etape_id in enumerate(reorder.etape_ids):
+        etape = db.query(Etape).filter(
+            Etape.id == etape_id,
+            Etape.process_id == process_id
+        ).first()
+        if etape:
+            etape.ordre = index + 1
+    db.commit()
+    enregistrer_historique(
+        db, utilisateur=user, action="reorder", type_entite="etape",
+        entite_id=None, nom_entite=f"Ordre des étapes (processus {process_id})",
+        apres={"etape_ids": reorder.etape_ids},
+    )
+    return {"message": "Étapes réordonnées"}
 
 
 @router.put("/{etape_id}", response_model=EtapeResponse)
@@ -305,31 +334,10 @@ def delete_etape(
     )
 
 
-@router.put("/reorder")
-def reorder_etapes(
-    process_id: int,
-    reorder: EtapeReorder,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_writer),
-):
-    for index, etape_id in enumerate(reorder.etape_ids):
-        etape = db.query(Etape).filter(
-            Etape.id == etape_id,
-            Etape.process_id == process_id
-        ).first()
-        if etape:
-            etape.ordre = index + 1
-    db.commit()
-    enregistrer_historique(
-        db, utilisateur=user, action="reorder", type_entite="etape",
-        entite_id=None, nom_entite=f"Ordre des étapes (processus {process_id})",
-        apres={"etape_ids": reorder.etape_ids},
-    )
-    return {"message": "Étapes réordonnées"}
-
-
 @etapes_standalone_router.get("/etapes/{etape_id}", response_model=EtapeDetailResponse)
-def get_etape_standalone(etape_id: int, db: Session = Depends(get_db)):
+def get_etape_standalone(etape_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     etape = db.query(Etape).filter(Etape.id == etape_id).first()
     if not etape:
         raise HTTPException(status_code=404, detail="Étape non trouvée")
@@ -353,7 +361,9 @@ def _slug_fichier(texte: str) -> str:
 
 
 @etapes_standalone_router.get("/etapes/{etape_id}/export")
-def export_etape_docx(etape_id: int, db: Session = Depends(get_db)):
+def export_etape_docx(etape_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     """Génère le document Word de l'étape (masques, fonctionnalités, services).
 
     La génération est faite côté serveur : le backend lit les captures du
@@ -378,7 +388,9 @@ def export_etape_docx(etape_id: int, db: Session = Depends(get_db)):
 
 
 @etapes_standalone_router.get("/processes/{process_id}/export")
-def export_process_docx(process_id: int, db: Session = Depends(get_db)):
+def export_process_docx(process_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     """Génère le document Word du process regroupant toutes ses étapes."""
     process = db.query(Process).filter(Process.id == process_id).first()
     if not process:

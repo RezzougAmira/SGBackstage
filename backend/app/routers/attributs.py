@@ -3,16 +3,31 @@ from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
 from ..models.attribut import Attribut
+from ..models.table import TableInfo
 from ..models.user import User
 from ..schemas.attribut import AttributCreate, AttributResponse
-from ..utils.deps import require_deleter, require_writer
+from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/tables/{table_id}/attributs", tags=["attributs"])
 
 
+def _verifier_table(db: Session, table_id: int) -> TableInfo:
+    """La table du chemin doit exister : sans ce contrôle, un attribut
+    pourrait être créé avec un table_id fantôme (et le rattachement resterait
+    invisible dans toute l'application)."""
+    table = db.query(TableInfo).filter(TableInfo.id == table_id).first()
+    if table is None:
+        raise HTTPException(status_code=404, detail="Table non trouvée")
+    return table
+
+
 @router.get("/", response_model=List[AttributResponse])
-def list_attributs(table_id: int, db: Session = Depends(get_db)):
+def list_attributs(
+    table_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     attributs = db.query(Attribut).filter(Attribut.table_id == table_id).all()
     return [AttributResponse.from_orm(a) for a in attributs]
 
@@ -24,7 +39,14 @@ def create_attribut(
     db: Session = Depends(get_db),
     user: User = Depends(require_writer),
 ):
-    db_attribut = Attribut(**attribut.model_dump())
+    _verifier_table(db, table_id)
+    # Le table_id du chemin fait foi : celui du corps est ignoré, sinon un
+    # client pourrait rattacher l'attribut à une autre table que celle de
+    # l'URL (les routes de lecture, elles, filtrent sur l'URL).
+    donnees = attribut.model_dump()
+    donnees["table_id"] = table_id
+
+    db_attribut = Attribut(**donnees)
     db.add(db_attribut)
     db.commit()
     db.refresh(db_attribut)

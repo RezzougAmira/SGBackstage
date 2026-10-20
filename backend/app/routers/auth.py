@@ -323,6 +323,14 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             detail="Email ou mot de passe incorrect"
         )
 
+    # Un compte bloqué ne peut pas ouvrir de session : refuser ici évite de
+    # délivrer un token valide à un utilisateur justement écarté.
+    if user.blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ce compte a été bloqué par un administrateur",
+        )
+
     # Créer le token
     access_token = create_access_token(data={"sub": str(user.id)})
     return Token(

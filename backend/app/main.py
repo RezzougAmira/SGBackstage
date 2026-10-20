@@ -183,6 +183,7 @@ def get_stats():
     from datetime import datetime, timedelta
 
     from sqlalchemy import func
+    from sqlalchemy.orm import joinedload
 
     from .database import SessionLocal
     from .models.domaine import Domaine
@@ -257,8 +258,11 @@ def get_stats():
         ]
 
         # Derniers événements (pour la frise du tableau de bord).
+        # joinedload : sans lui, chaque h.utilisateur déclenchait une requête
+        # supplémentaire (15 requêtes pour 15 événements).
         recents = (
             db.query(Historique)
+            .options(joinedload(Historique.utilisateur))
             .order_by(Historique.created_at.desc(), Historique.id.desc())
             .limit(15)
             .all()

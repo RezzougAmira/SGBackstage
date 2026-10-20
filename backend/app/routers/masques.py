@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import re
@@ -9,7 +9,7 @@ from ..models.service import MasqueService, Service
 from ..models.procedure import ProcedureStockee, ServiceProcedure
 from ..models.user import User
 from ..utils import impact
-from ..utils.deps import require_deleter, require_writer
+from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 from ..schemas.masque import (
     MasqueCreate,
@@ -69,15 +69,30 @@ def _serialiser(masque: Masque, db: Session) -> MasqueResponse:
 
 
 @router.get("/", response_model=List[MasqueResponse])
-def list_masques(search: Optional[str] = None, db: Session = Depends(get_db)):
+def list_masques(
+    search: Optional[str] = Query(None, max_length=100),
+    limit: Optional[int] = Query(None, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Liste des masques.
+
+    `limit`/`offset` optionnels : sans eux, toute la liste est renvoyée
+    (comportement historique, aucun changement requis côté frontend).
+    """
     query = db.query(Masque)
     if search:
         query = query.filter(Masque.code.ilike(f"%{search}%"))
+    if limit is not None:
+        query = query.offset(offset).limit(limit)
     return [_serialiser(m, db) for m in query.all()]
 
 
 @router.get("/{masque_id}", response_model=MasqueResponse)
-def get_masque(masque_id: int, db: Session = Depends(get_db)):
+def get_masque(masque_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     masque = db.query(Masque).filter(Masque.id == masque_id).first()
     if not masque:
         raise HTTPException(status_code=404, detail="Masque non trouvé")
@@ -137,7 +152,9 @@ def update_masque(
 
 
 @router.get("/{masque_id}/impact", response_model=MasqueImpact)
-def get_masque_impact(masque_id: int, db: Session = Depends(get_db)):
+def get_masque_impact(masque_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     """Où le masque est utilisé, pour dimensionner la suppression."""
     db_masque = db.query(Masque).filter(Masque.id == masque_id).first()
     if not db_masque:

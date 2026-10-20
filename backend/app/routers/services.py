@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from ..database import get_db
 from ..models.service import Service, MasqueService
 from ..models.masque import Masque
@@ -10,7 +10,7 @@ from ..schemas.service import ServiceCreate, ServiceResponse
 from ..schemas.procedure import ProcedureCreate, ProcedureResponse
 from .procedures import _serialiser as _serialiser_procedure
 from ..utils import impact
-from ..utils.deps import require_deleter, require_writer
+from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/services", tags=["services"])
@@ -61,7 +61,9 @@ def _serialiser(service: Service) -> ServiceResponse:
 
 
 @router.get("/{service_id}/procedures", response_model=List[ProcedureResponse])
-def list_procedures_du_service(service_id: int, db: Session = Depends(get_db)):
+def list_procedures_du_service(service_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     service = db.query(Service).filter(Service.id == service_id).first()
     if not service:
         raise HTTPException(status_code=404, detail="Service non trouvé")
@@ -184,13 +186,28 @@ def detacher_procedure(
 
 
 @router.get("/", response_model=List[ServiceResponse])
-def list_services(db: Session = Depends(get_db)):
-    services = db.query(Service).all()
-    return [_serialiser(s) for s in services]
+def list_services(
+    limit: Optional[int] = Query(None, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Liste des services.
+
+    `limit`/`offset` sont OPTIONNELS : sans eux, le comportement historique est
+    conservé (toute la liste), ce qui n'impose aucune modification au frontend.
+    Les gros référentiels peuvent paginer en fournissant `limit`.
+    """
+    requete = db.query(Service)
+    if limit is not None:
+        requete = requete.offset(offset).limit(limit)
+    return [_serialiser(s) for s in requete.all()]
 
 
 @router.get("/{service_id}", response_model=ServiceResponse)
-def get_service(service_id: int, db: Session = Depends(get_db)):
+def get_service(service_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     service = db.query(Service).filter(Service.id == service_id).first()
     if not service:
         raise HTTPException(status_code=404, detail="Service non trouvé")

@@ -42,6 +42,14 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Utilisateur introuvable : le compte a peut-être été supprimé"
         )
+    # Le blocage doit être vérifié à CHAQUE requête : sinon un compte bloqué
+    # garderait son token valide (24 h) et continuerait d'écrire dans le
+    # référentiel, alors que l'administrateur l'a justement coupé.
+    if user.blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ce compte a été bloqué par un administrateur",
+        )
     return user
 
 

@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from typing import List, Optional
 from urllib.parse import quote
 from ..database import get_db
 from ..models.domaine import Domaine
+from ..models.etape import Etape
 from ..models.process import Process
 from ..models.user import User
 from ..schemas.domaine import DomaineCreate, DomaineResponse
 from ..utils import impact
-from ..utils.deps import require_deleter, require_writer
+from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.export_docx import build_domaine_document
 from ..utils.filenames import slug_fichier
 from ..utils.historique import enregistrer_historique, snapshot
@@ -31,13 +32,31 @@ def _serialize(domaine: Domaine):
 
 
 @router.get("/", response_model=List[DomaineResponse])
-def list_domaines(db: Session = Depends(get_db)):
-    domaines = db.query(Domaine).all()
+def list_domaines(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    # Eager loading de tout le graphe domaine > process > etapes > masques :
+    # sans lui, _serialize déclenchait des centaines de requêtes (N+1) pour
+    # compter les masques de chaque domaine.
+    domaines = (
+        db.query(Domaine)
+        .options(
+            selectinload(Domaine.processes)
+            .selectinload(Process.etapes)
+            .selectinload(Etape.masques)
+        )
+        .all()
+    )
     return [_serialize(domaine) for domaine in domaines]
 
 
 @router.get("/{domaine_id}", response_model=DomaineResponse)
-def get_domaine(domaine_id: int, db: Session = Depends(get_db)):
+def get_domaine(
+    domaine_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     domaine = db.query(Domaine).filter(Domaine.id == domaine_id).first()
     if not domaine:
         raise HTTPException(status_code=404, detail="Domaine non trouvé")
@@ -45,7 +64,11 @@ def get_domaine(domaine_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{domaine_id}/export")
-def export_domaine_docx(domaine_id: int, db: Session = Depends(get_db)):
+def export_domaine_docx(
+    domaine_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     """Génère le document Word du domaine regroupant tous ses processes (avec
     leurs étapes), côté serveur."""
     domaine = db.query(Domaine).filter(Domaine.id == domaine_id).first()

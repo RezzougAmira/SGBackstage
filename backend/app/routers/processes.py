@@ -7,14 +7,16 @@ from ..models.etape import Etape
 from ..models.user import User
 from ..schemas.process import ProcessCreate, ProcessUpdate, ProcessResponse
 from ..utils import impact
-from ..utils.deps import require_deleter, require_writer
+from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/domaines/{domaine_id}/processes", tags=["processes"])
 
 
 @router.get("/", response_model=List[ProcessResponse])
-def list_processes(domaine_id: int, db: Session = Depends(get_db)):
+def list_processes(domaine_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     processes = db.query(Process).filter(Process.domaine_id == domaine_id).all()
     result = []
     for process in processes:
@@ -25,7 +27,9 @@ def list_processes(domaine_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{process_id}", response_model=ProcessResponse)
-def get_process(domaine_id: int, process_id: int, db: Session = Depends(get_db)):
+def get_process(domaine_id: int, process_id: int, db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     process = db.query(Process).filter(
         Process.id == process_id,
         Process.domaine_id == domaine_id
