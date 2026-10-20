@@ -2,6 +2,7 @@ import { api } from './client';
 import {
   HistoriqueFilters,
   HistoriqueResponse,
+  HistoriqueTypeEntite,
   HistoriqueUtilisateur,
 } from '../types';
 
@@ -24,4 +25,8 @@ export const historiqueApi = {
 
   /** Utilisateurs présents dans le journal (pour le filtre, tous rôles). */
   utilisateurs: () => api.get<HistoriqueUtilisateur[]>('/api/historique/utilisateurs'),
+
+  /** Dossier Word d'un objet : fiche courante + journal complet. */
+  exportDossier: (typeEntite: HistoriqueTypeEntite, entiteId: number) =>
+    api.getBlob(`/api/historique/export/${typeEntite}/${entiteId}`),
 };

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -9,8 +9,18 @@ from ..database import get_db
 from ..models.historique import Historique
 from ..models.user import User
 from ..utils.deps import get_current_user
+from ..utils.export_dossier_docx import build_dossier_document
+from ..utils.filenames import slug_fichier
 
 router = APIRouter(prefix="/api/historique", tags=["historique"])
+
+DOCX_MEDIA_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
+
+# Types pour lesquels le journal est assez riche pour produire un dossier
+# Word (fiche + événements). Les autres types ne disposent pas de fiche.
+TYPES_EXPORTABLES = {"masque", "service", "procedure"}
 
 
 def _serialiser(h: Historique) -> dict:
@@ -126,3 +136,37 @@ def utilisateurs_du_journal(
         }
         for uid, name, avatar_key, nb in lignes
     ]
+
+
+@router.get("/export/{type_entite}/{entite_id}")
+def export_dossier_docx(
+    type_entite: str,
+    entite_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Dossier Word d'un objet : fiche courante + journal complet.
+
+    Même un objet supprimé produit un document : le journal conserve les
+    instantanés avant/après de chaque événement.
+    """
+    if type_entite not in TYPES_EXPORTABLES:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Export non disponible pour le type « {type_entite} ».",
+        )
+
+    try:
+        contenu, nom_objet = build_dossier_document(db, type_entite, entite_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    base = slug_fichier(nom_objet or f"{type_entite}-{entite_id}")
+    nom_fichier = f"dossier-{base}.docx"
+    return Response(
+        content=contenu,
+        media_type=DOCX_MEDIA_TYPE,
+        headers={
+            "Content-Disposition": f'attachment; filename="{nom_fichier}"',
+        },
+    )

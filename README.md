@@ -531,6 +531,9 @@ plusieurs services. Avant toute suppression, l'API calcule l'impact :
 - Ligne du temps des événements (création, modification, suppression, rattachement, détachement, réordonnancement)
 - Filtres par type d'entité, action, utilisateur et période
 - Pagination, détail « avant »/« après » des modifications
+- Téléchargement d'un **dossier Word** (fiche + journal complet) pour un
+  masque, un service ou une procédure stockée ; fonctionne même sur un objet
+  supprimé, le journal conservant ses instantanés
 
 ### Administration (Utilisateurs)
 
@@ -665,6 +668,8 @@ Toutes les routes sont préfixées par `/api` et la majorité exigent un JWT
 | GET | `/api/search?q=` | Recherche globale (masques, services, tables) |
 | GET | `/api/stats` | Compteurs pour le tableau de bord |
 | GET | `/api/historique` | Journal d'audit (filtres + pagination) |
+| GET | `/api/historique/utilisateurs` | Utilisateurs présents dans le journal (filtre) |
+| GET | `/api/historique/export/{type}/{id}` | Dossier Word (fiche + journal) d'un masque, service ou procédure |
 
 ### Médias
 

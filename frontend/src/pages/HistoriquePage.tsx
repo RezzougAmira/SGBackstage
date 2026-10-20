@@ -663,6 +663,38 @@ function DetailEvent({
   // Bascule « seulement les changements » : par défaut, tous les champs
   // restent visibles (comportement historique).
   const [seulementChanges, setSeulementChanges] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Le dossier Word (fiche + journal) n'est proposé que pour les types
+  // pour lesquels l'API sait reconstituer une fiche.
+  const exportable =
+    evt.entite_id != null &&
+    (evt.type_entite === "masque" ||
+      evt.type_entite === "service" ||
+      evt.type_entite === "procedure");
+
+  // Document assemblé côté serveur : on récupère le binaire puis on
+  // déclenche le téléchargement via une URL d'objet temporaire.
+  const handleExportDossier = async () => {
+    if (evt.entite_id == null || exporting) return;
+    setExporting(true);
+    try {
+      const blob = await historiqueApi.exportDossier(evt.type_entite, evt.entite_id);
+      const url = URL.createObjectURL(blob);
+      const lien = document.createElement("a");
+      lien.href = url;
+      lien.download = `dossier-${evt.nom_entite ?? evt.type_entite}.docx`;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Erreur:", error);
+      window.alert("Le téléchargement du dossier a échoué. Réessayez.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const avant = evt.avant ?? {};
   const apres = evt.apres ?? {};
@@ -712,6 +744,27 @@ function DetailEvent({
                 <path d="M12 7v5l3 2" strokeLinecap="round" />
               </svg>
               Historique de « {evt.nom_entite} »
+            </button>
+          )}
+          {exportable && (
+            <button
+              type="button"
+              onClick={handleExportDossier}
+              disabled={exporting}
+              title="Télécharger la fiche et le journal complet de cet élément (Word)"
+              className="flex items-center gap-1.5 rounded-lg border border-[#dcdce1] bg-white px-3 py-1.5 text-xs font-semibold text-[#003049] hover:bg-[#e6e8f5] disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path d="M12 3v12m0 0l-4-4m4 4l4-4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" strokeLinecap="round" />
+              </svg>
+              {exporting ? "Génération…" : "Télécharger le dossier"}
             </button>
           )}
         </div>
