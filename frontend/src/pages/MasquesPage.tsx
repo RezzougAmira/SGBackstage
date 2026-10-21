@@ -10,6 +10,8 @@ import { useProtectedImage } from "../hooks/useProtectedImage";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
 import { lireSearchParam } from "../utils/url";
+import { messageErreur } from "../utils/erreurs";
+import { ErrorState } from "../components/ui/ErrorState";
 
 const PAGE_SIZE = 10;
 
@@ -167,13 +169,19 @@ export function MasquesPage() {
   const [exporting, setExporting] = useState(false);
   // Filtre : étape qui porte le masque.
   const [filtreEtape, setFiltreEtape] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const t = useRef<number>();
 
   useEffect(() => setPage(1), [query, filtreEtape]);
   useEffect(() => () => window.clearTimeout(t.current), []);
   const fetch = async () => {
+    setLoadError(null);
     try {
       setMasques(await masquesApi.list());
+    } catch (e) {
+      // Sans ce catch, un échec laissait un tableau vide, indiscernable
+      // d'un référentiel réellement vide.
+      setLoadError(messageErreur(e));
     } finally {
       setLoading(false);
     }
@@ -314,7 +322,9 @@ export function MasquesPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Erreur lors de l'export CSV:", error);
-      window.alert("L'export CSV a échoué. Réessayez.");
+      // Un toast plutôt qu'un window.alert : non bloquant, déjà stylé et
+      // cohérent avec les autres messages de la page.
+      show("L'export CSV a échoué. Réessayez.");
     } finally {
       setExporting(false);
     }
@@ -406,6 +416,12 @@ export function MasquesPage() {
 
       {loading ? (
         <TableSkeleton />
+      ) : loadError ? (
+        <ErrorState
+          message="Impossible de charger les masques."
+          detail={loadError}
+          onRetry={fetch}
+        />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-[#e6e8f5] bg-white dark:border-white/10 dark:bg-[#131313]">
           <table className="min-w-full divide-y divide-[#e6e8f5] dark:divide-white/10">

@@ -6,6 +6,8 @@ import { authApi } from "../api/auth";
 import { useAuth } from "../hooks/useAuth";
 import { useProtectedImage } from "../hooks/useProtectedImage";
 import { ROLES, roleLabel } from "../utils/roles";
+import { messageErreur } from "../utils/erreurs";
+import { ErrorState } from "../components/ui/ErrorState";
 
 /**
  * Champ du formulaire de création : libellé discret, valeur vide visible et
@@ -183,6 +185,7 @@ export function ProfilePage() {
   const [erreurCreation, setErreurCreation] = useState<string | null>(null);
   const [motDePasseVisible, setMotDePasseVisible] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Compte connecté : sert à protéger sa propre ligne (pas d'auto-blocage).
   const { user: moi } = useAuth();
@@ -219,7 +222,7 @@ export function ProfilePage() {
 
   const fermerFormulaire = () => {
     setShowForm(false);
-    setFormData({ email: "", password: "", name: "", role: "developer" });
+    setFormData({ email: "", password: "", name: "", role: "contributor" });
     setErreurCreation(null);
     setMotDePasseVisible(false);
   };
@@ -237,11 +240,14 @@ export function ProfilePage() {
   };
 
   const fetchUsers = async () => {
+    setLoadError(null);
     try {
       const data = await authApi.listUsers();
       setUsers(data);
     } catch (error) {
-      console.error("Erreur:", error);
+      // Sans ce catch, l'échec affichait « Chargement... » puis une liste vide,
+      // indiscernable d'un référentiel sans compte.
+      setLoadError(messageErreur(error));
     } finally {
       setLoading(false);
     }
@@ -396,6 +402,26 @@ export function ProfilePage() {
 
   if (loading) {
     return <div className="py-8 text-center">Chargement...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="font-poppins text-3xl font-bold tracking-tight text-[#0c1d31] dark:text-white">
+            Gestion des utilisateurs
+          </h1>
+          <p className="mt-1 font-poppins text-sm text-[#525f6d] dark:text-white/60">
+            Créez les comptes, attribuez les rôles et bloquez les accès.
+          </p>
+        </div>
+        <ErrorState
+          message="Impossible de charger la liste des utilisateurs."
+          detail={loadError}
+          onRetry={fetchUsers}
+        />
+      </div>
+    );
   }
 
   return (

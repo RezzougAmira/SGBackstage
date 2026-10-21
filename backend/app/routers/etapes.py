@@ -200,7 +200,7 @@ def create_etape(
 
     db_etape = Etape(**{**etape.model_dump(), "process_id": process_id})
     db.add(db_etape)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_etape)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="etape",
@@ -224,7 +224,6 @@ def reorder_etapes(
         ).first()
         if etape:
             etape.ordre = index + 1
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="reorder", type_entite="etape",
         entite_id=None, nom_entite=f"Ordre des étapes (processus {process_id})",
@@ -247,7 +246,7 @@ def update_etape(
     for key, value in etape.model_dump(exclude_unset=True).items():
         setattr(db_etape, key, value)
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_etape)
     enregistrer_historique(
         db, utilisateur=user, action="modification", type_entite="etape",
@@ -443,7 +442,6 @@ def detach_masque_de_etape(
         )
 
     db.delete(lien)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="detachement", type_entite="masque",
         entite_id=masque_id,

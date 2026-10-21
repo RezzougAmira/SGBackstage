@@ -9,6 +9,8 @@ import { EntityHistory } from "../components/EntityHistory";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
 import { lireSearchParam } from "../utils/url";
+import { messageErreur } from "../utils/erreurs";
+import { ErrorState } from "../components/ui/ErrorState";
 
 const PAGE_SIZE = 10;
 
@@ -305,16 +307,20 @@ export function ServicesPage() {
   const [filtreMethode, setFiltreMethode] = useState("");
   // Tri par colonne. null = ordre d'origine.
   const [tri, setTri] = useState<{ cle: TriCle; asc: boolean } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const t = useRef<number>();
 
   useEffect(() => setPage(1), [query, tri, filtreMethode]);
   useEffect(() => () => window.clearTimeout(t.current), []);
   const fetch = async () => {
+    setLoadError(null);
     try {
       setServices(await servicesApi.list());
       setErr(null);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Impossible de charger les services.");
+      // Sans ce catch, un échec laissait un tableau vide, indiscernable
+      // d'un référentiel réellement vide.
+      setLoadError(messageErreur(e));
     } finally {
       setLoading(false);
     }
@@ -467,7 +473,7 @@ export function ServicesPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Erreur lors de l'export CSV:", error);
-      window.alert("L'export CSV a échoué. Réessayez.");
+      show("L'export CSV a échoué. Réessayez.");
     } finally {
       setExporting(false);
     }
@@ -562,6 +568,12 @@ export function ServicesPage() {
 
       {loading ? (
         <TableSkeleton />
+      ) : loadError ? (
+        <ErrorState
+          message="Impossible de charger les services."
+          detail={loadError}
+          onRetry={fetch}
+        />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-[#e6e8f5] bg-white dark:border-white/10 dark:bg-[#131313]">
           <table className="min-w-full divide-y divide-[#e6e8f5] dark:divide-white/10">

@@ -95,7 +95,7 @@ def creer_et_attacher_procedure(
     db.add(procedure)
     db.flush()
     db.add(ServiceProcedure(service_id=service_id, procedure_id=procedure.id))
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(procedure)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="procedure",
@@ -145,7 +145,6 @@ def attacher_procedure(
         )
 
     db.add(ServiceProcedure(service_id=service_id, procedure_id=procedure_id))
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="rattachement", type_entite="procedure",
         entite_id=procedure.id, nom_entite=procedure.nom,
@@ -177,7 +176,6 @@ def detacher_procedure(
 
     nom_proc = liaison.procedure.nom if liaison.procedure else str(procedure_id)
     db.delete(liaison)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="detachement", type_entite="procedure",
         entite_id=procedure_id, nom_entite=nom_proc,
@@ -222,7 +220,7 @@ def create_service(
 ):
     db_service = Service(**service.model_dump())
     db.add(db_service)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_service)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="service",
@@ -247,7 +245,7 @@ def update_service(
     for key, value in service.model_dump(exclude_unset=True).items():
         setattr(db_service, key, value)
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_service)
     enregistrer_historique(
         db, utilisateur=user, action="modification", type_entite="service",
@@ -280,7 +278,6 @@ def assign_service_to_masque(
         raise HTTPException(status_code=409, detail="Service déjà associé à ce masque")
 
     db.add(MasqueService(masque_id=masque_id, service_id=service_id))
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="rattachement", type_entite="service",
         entite_id=service_id, nom_entite=db_service.nom,
@@ -303,7 +300,6 @@ def delete_service(
 
     avant = snapshot(db_service)
     db.delete(db_service)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="suppression", type_entite="service",
         entite_id=service_id, nom_entite=avant.get("nom", "?"),

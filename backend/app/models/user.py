@@ -10,7 +10,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
-    role = Column(String(50), default="developer")
+    role = Column(String(50), default="contributor")
     blocked = Column(Integer, default=0)
     # Clé de l'image dans le bucket privé, pas une URL : le bucket n'est pas
     # public et l'URL signerait expire. L'image se récupère via /api/upload/.

@@ -54,7 +54,7 @@ def create_table(
 
     db_table = TableInfo(**table.model_dump())
     db.add(db_table)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_table)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="table",
@@ -79,7 +79,7 @@ def update_table(
     for key, value in table.model_dump(exclude_unset=True).items():
         setattr(db_table, key, value)
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_table)
     enregistrer_historique(
         db, utilisateur=user, action="modification", type_entite="table",
@@ -101,7 +101,6 @@ def delete_table(
 
     avant = snapshot(db_table)
     db.delete(db_table)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="suppression", type_entite="table",
         entite_id=table_id, nom_entite=f"{avant.get('nom', '?')} ({avant.get('base_donnees', '?')})",

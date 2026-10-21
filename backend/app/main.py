@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from .config import get_settings
 from .database import engine, Base
+from .models.user import User
 from .routers import (
     auth_router, domaines_router, processes_router, etapes_router, etapes_standalone_router,
     masques_router, services_router, procedures_router, tables_router,
@@ -10,6 +11,7 @@ from .routers import (
     etape_masques_router, fonctionnalites_router, historique_router
 )
 from .routers.upload import router as upload_router
+from .utils.deps import get_current_user
 
 settings = get_settings()
 
@@ -116,6 +118,27 @@ def apply_schema_patches() -> None:
 
 apply_schema_patches()
 
+
+def _verifier_secret_jwt() -> None:
+    """Refuse de démarrer en production avec la clé JWT de développement.
+
+    La valeur par défaut de ``config.py`` est publique (présente dans le
+    dépôt) : si elle servait en production, n'importe qui pourrait signer un
+    token administrateur et contourner toute l'authentification. On préfère
+    une erreur explicite au démarrage plutôt qu'une API qui a l'air saine.
+    """
+    defaut = "votre_cle_secrete_tres_longue_et_complexe"
+    if settings.ENVIRONMENT.lower() == "production" and settings.JWT_SECRET == defaut:
+        raise RuntimeError(
+            "JWT_SECRET n'a pas été défini : la valeur de développement est "
+            "publique et permettrait de forger des tokens. Définissez la "
+            "variable JWT_SECRET (chaîne aléatoire longue) avant de lancer "
+            "l'API en production."
+        )
+
+
+_verifier_secret_jwt()
+
 # Créer l'application FastAPI
 app = FastAPI(
     title="SGBackstage API",
@@ -178,8 +201,13 @@ def root():
 
 
 @app.get("/api/stats")
-def get_stats():
-    """Compteurs et activité du journal, pour le tableau de bord."""
+def get_stats(_: User = Depends(get_current_user)):
+    """Compteurs et activité du journal, pour le tableau de bord.
+
+    Authentifié comme le reste du référentiel : la réponse nomme les
+    contributeurs les plus actifs et les derniers événements, ce qui n'a rien
+    à faire sur une route publique.
+    """
     from datetime import datetime, timedelta
 
     from sqlalchemy import func

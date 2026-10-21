@@ -40,9 +40,9 @@ class FonctionnaliteService(Base):
 
     id = Column(Integer, primary_key=True)
     fonctionnalite_id = Column(
-        Integer, ForeignKey("fonctionnalites.id", ondelete="CASCADE")
+        Integer, ForeignKey("fonctionnalites.id", ondelete="CASCADE"), index=True
     )
-    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"))
+    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"), index=True)
 
     fonctionnalite = relationship("Fonctionnalite", back_populates="services")
     service = relationship("Service", back_populates="fonctionnalites")

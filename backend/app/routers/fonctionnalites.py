@@ -161,7 +161,7 @@ def create_fonctionnalite(
         ordre=ordre,
     )
     db.add(fonctionnalite)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(fonctionnalite)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="fonctionnalite",
@@ -200,7 +200,7 @@ def update_fonctionnalite(
         if champ in donnees:
             setattr(fonctionnalite, champ, donnees[champ])
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(fonctionnalite)
     enregistrer_historique(
         db, utilisateur=user, action="modification", type_entite="fonctionnalite",
@@ -229,7 +229,6 @@ def delete_fonctionnalite(
 
     avant = snapshot(fonctionnalite)
     db.delete(fonctionnalite)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="suppression", type_entite="fonctionnalite",
         entite_id=fonctionnalite_id, nom_entite=avant.get("titre", "?"),
@@ -277,7 +276,6 @@ def add_service(
         )
 
     db.add(FonctionnaliteService(fonctionnalite_id=fonctionnalite_id, service_id=service_id))
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="rattachement", type_entite="service",
         entite_id=service_id, nom_entite=service.nom,
@@ -311,7 +309,6 @@ def remove_service(
 
     nom_service = liaison.service.nom if liaison.service else str(service_id)
     db.delete(liaison)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="detachement", type_entite="service",
         entite_id=service_id, nom_entite=nom_service,

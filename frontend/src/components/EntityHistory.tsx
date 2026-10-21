@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { historiqueApi } from "../api/historique";
 import { HistoriqueEvent, HistoriqueFilters } from "../types";
+import { Toast } from "./ui/Toast";
 
 interface EntityHistoryProps {
   typeEntite: "masque" | "service" | "procedure";
@@ -109,6 +110,7 @@ export function EntityHistory({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   // Dossier Word (fiche + journal complet) : assemblé côté serveur, puis
   // téléchargé via une URL d'objet temporaire.
@@ -127,7 +129,7 @@ export function EntityHistory({
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error("Erreur:", e);
-      window.alert("Le téléchargement du dossier a échoué. Réessayez.");
+      setToast("Le téléchargement du dossier a échoué. Réessayez.");
     } finally {
       setExporting(false);
     }
@@ -269,6 +271,7 @@ export function EntityHistory({
           </button>
         </div>
       </div>
+      <Toast message={toast} onClose={() => setToast(null)} variant="erreur" />
     </div>
   );
 }

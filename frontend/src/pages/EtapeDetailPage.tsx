@@ -10,6 +10,8 @@ import { MasqueForm, MasqueFormData } from "../components/forms/MasqueForm";
 import { DetailSkeleton } from "../components/ui/pageSkeletons";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
+import { messageErreur } from "../utils/erreurs";
+import { ErrorState } from "../components/ui/ErrorState";
 
 interface EtapePageState {
   processNom?: string;
@@ -34,16 +36,20 @@ export function EtapeDetailPage() {
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const toastTimer = useRef<number>();
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const fetchEtape = async (etapeId: number) => {
+    setLoadError(null);
     try {
       const data = await etapesApi.getById(etapeId);
       setEtape(data);
     } catch (error) {
-      console.error("Erreur:", error);
+      // Sans ce catch, l'échec laissait « Étape non trouvée », alors que la
+      // cause est réseau ou serveur.
+      setLoadError(messageErreur(error));
     } finally {
       setLoading(false);
     }
@@ -172,6 +178,19 @@ export function EtapeDetailPage() {
 
   if (loading) {
     return <DetailSkeleton />;
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <Breadcrumb items={[{ label: "Métiers", path: "/domaines" }, { label: "Étape" }]} />
+        <ErrorState
+          message="Impossible de charger l'étape."
+          detail={loadError}
+          onRetry={id ? () => fetchEtape(parseInt(id)) : undefined}
+        />
+      </div>
+    );
   }
 
   if (!etape) {

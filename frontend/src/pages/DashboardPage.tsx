@@ -4,6 +4,8 @@ import { Stats, HISTORIQUE_ACTIONS, HISTORIQUE_ENTITES, HistoriqueEvent } from '
 import { searchApi } from '../api/search';
 import { DashboardSkeleton } from '../components/ui/pageSkeletons';
 import { useAuth } from '../hooks/useAuth';
+import { messageErreur } from '../utils/erreurs';
+import { ErrorState } from '../components/ui/ErrorState';
 
 type IconProps = { className?: string };
 
@@ -143,24 +145,39 @@ function dateLongue(iso: string): string {
 export function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { user } = useAuth();
 
+  const fetchData = async () => {
+    setLoadError(null);
+    try {
+      const statsData = await searchApi.getStats();
+      setStats(statsData);
+    } catch (error) {
+      // Sans ce catch, l'échec laissait un tableau de bord vide, indiscernable
+      // d'un compte réellement sans activité.
+      setLoadError(messageErreur(error));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const statsData = await searchApi.getStats();
-        setStats(statsData);
-      } catch (error) {
-        console.error('Erreur lors du chargement:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
-  if (loading || !stats) {
+  if (loading) {
     return <DashboardSkeleton />;
+  }
+
+  if (loadError || !stats) {
+    return (
+      <ErrorState
+        message="Impossible de charger le tableau de bord."
+        detail={loadError ?? undefined}
+        onRetry={fetchData}
+      />
+    );
   }
 
   // Calculés côté client — l'activité 14j renvoie déjà tout le détail.

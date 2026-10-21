@@ -68,8 +68,15 @@ def enregistrer_historique(
 ) -> None:
     """Ajoute une entrée au journal et la commite.
 
-    Appelée APRÈS l'opération métier (l'objet est déjà persisté ou supprimé) :
-    chaque action du journal vit ainsi dans sa propre transaction, à la suite.
+    Appelée APRÈS l'opération métier (l'objet est déjà persisté ou supprimé).
+    Le commit finalise une transaction qui couvre à la fois la mutation
+    appelante et cette entrée : si l'écriture du journal échoue, la mutation
+    est annulée elle aussi (cf. `get_db`, qui fait le rollback), de sorte que
+    la base et le journal ne peuvent pas diverger.
+
+    Les appels qui ne sont pas dans une transaction ouverte gardent le
+    comportement d'origine : la mutation est committée par l'appelant, et
+    cette fonction ne fait qu'ajouter l'entrée.
     """
     db.add(
         Historique(
@@ -82,4 +89,9 @@ def enregistrer_historique(
             apres=apres,
         )
     )
-    db.commit()
+    try:
+        db.flush()  # fait remonter une éventuelle erreur (contrainte, type…)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise

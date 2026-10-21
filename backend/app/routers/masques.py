@@ -116,7 +116,7 @@ def create_masque(
 
     db_masque = Masque(**{**masque.model_dump(), "code": masque.code.strip().upper()})
     db.add(db_masque)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_masque)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="masque",
@@ -141,7 +141,7 @@ def update_masque(
     for key, value in masque.model_dump(exclude_unset=True).items():
         setattr(db_masque, key, value)
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_masque)
     enregistrer_historique(
         db, utilisateur=user, action="modification", type_entite="masque",
@@ -328,7 +328,7 @@ def create_masque_pour_etape(
         db.flush()
         db.add(MasqueService(masque_id=db_masque.id, service_id=db_service.id))
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_masque)
 
     enregistrer_historique(

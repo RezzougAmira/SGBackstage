@@ -21,8 +21,8 @@ class ServiceProcedure(Base):
     __tablename__ = "service_procedures"
 
     id = Column(Integer, primary_key=True)
-    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"))
-    procedure_id = Column(Integer, ForeignKey("procedures_stockees.id", ondelete="CASCADE"))
+    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"), index=True)
+    procedure_id = Column(Integer, ForeignKey("procedures_stockees.id", ondelete="CASCADE"), index=True)
 
     service = relationship("Service", back_populates="procedures")
     procedure = relationship("ProcedureStockee", back_populates="services")

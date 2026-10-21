@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
@@ -12,6 +12,7 @@ from ..schemas.user import (
     UserAdminUpdate,
     Token,
 )
+from ..utils import limiteur_connexion
 from ..utils.auth import get_password_hash, verify_password, create_access_token
 from ..utils.deps import get_current_user, require_admin
 from ..utils.roles import ROLE_CONTRIBUTOR, VALID_ROLES
@@ -21,6 +22,27 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # Le mot de passe ne doit jamais se retrouver dans le journal.
 SANS_PASSWORD = frozenset({"password"})
+
+
+def _refuser(ip: str, email: str) -> None:
+    """Compte une tentative échouée, en précisant le délai si le seuil est atteint.
+
+    Le message reste identique pour un email inconnu et un mot de passe
+    erroné : indiquer lequel des deux est faux reviendrait à confirmer
+    l'existence d'un compte.
+    """
+    from ..utils.limiteur_connexion import MAX_ECHECS
+
+    reste = limiteur_connexion.enregistrer_echec(ip, email)
+    if reste:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Trop de tentatives ({MAX_ECHECS}). "
+                f"Compte temporairement bloqué pendant {max(1, reste // 60)} minute(s)."
+            ),
+            headers={"Retry-After": str(reste)},
+        )
 
 
 @router.get("/me", response_model=UserResponse)
@@ -56,7 +78,7 @@ def update_me(
         current_user.avatar_key = donnees["avatar_key"] or None
 
     avant = snapshot(current_user, SANS_PASSWORD)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(current_user)
     enregistrer_historique(
         db, utilisateur=current_user, action="modification", type_entite="user",
@@ -86,7 +108,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         role=ROLE_CONTRIBUTOR
     )
     db.add(db_user)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_user)
     enregistrer_historique(
         db, utilisateur=None, action="creation", type_entite="user",
@@ -124,7 +146,7 @@ def create_user(
         role=user.role
     )
     db.add(db_user)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_user)
     enregistrer_historique(
         db, utilisateur=admin, action="creation", type_entite="user",
@@ -219,7 +241,7 @@ def update_user_by_admin(
         user.blocked = 1 if donnees["blocked"] else 0
 
     avant = snapshot(user, SANS_PASSWORD)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(user)
     enregistrer_historique(
         db, utilisateur=admin, action="modification", type_entite="user",
@@ -245,7 +267,7 @@ def block_user(
         )
     user.blocked = 1
     avant = snapshot(user, SANS_PASSWORD)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(user)
     enregistrer_historique(
         db, utilisateur=admin, action="modification", type_entite="user",
@@ -266,7 +288,7 @@ def unblock_user(
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
     user.blocked = 0
     avant = snapshot(user, SANS_PASSWORD)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(user)
     enregistrer_historique(
         db, utilisateur=admin, action="modification", type_entite="user",
@@ -295,7 +317,7 @@ def reset_user_password(
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
 
     user.password = get_password_hash(payload.password)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(user)
     enregistrer_historique(
         db, utilisateur=admin, action="modification", type_entite="user",
@@ -307,10 +329,32 @@ def reset_user_password(
 
 
 @router.post("/login", response_model=Token)
-def login(credentials: UserLogin, db: Session = Depends(get_db)):
+def login(
+    credentials: UserLogin,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    # Le seuil est calculé sur l'IP + l'email : bloquer seulement par IP
+    # punirait tout un réseau d'entreprise derrière un même NAT, et bloquer
+    # seulement par email permettrait de contourner en changeant d'adresse.
+    ip = request.client.host if request.client else "inconnue"
+    reste = limiteur_connexion.est_bloque(ip, credentials.email)
+    if reste:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                "Trop de tentatives de connexion. "
+                f"Réessayez dans {max(1, reste // 60)} minute(s)."
+            ),
+            headers={"Retry-After": str(reste)},
+        )
+
     # Chercher l'utilisateur
     user = db.query(User).filter(User.email == credentials.email).first()
     if not user:
+        # On compte aussi l'email inconnu : sinon un attaquant pourrait
+        # sonder les adresses valides sans jamais être ralenti.
+        _refuser(ip, credentials.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou mot de passe incorrect"
@@ -318,6 +362,7 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
 
     # Vérifier le mot de passe
     if not verify_password(credentials.password, user.password):
+        _refuser(ip, credentials.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou mot de passe incorrect"
@@ -330,6 +375,10 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ce compte a été bloqué par un administrateur",
         )
+
+    # Connexion réussie : le compteur de ce couple repart à zéro, sinon un
+    # utilisateur légitime finirait bloqué par ses propres fautes de frappe.
+    limiteur_connexion.reinitialiser(ip, credentials.email)
 
     # Créer le token
     access_token = create_access_token(data={"sub": str(user.id)})

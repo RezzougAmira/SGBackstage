@@ -7,6 +7,8 @@ import { ConfirmModal } from "../components/ConfirmModal";
 import { DomainesSkeleton } from "../components/ui/pageSkeletons";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
+import { messageErreur } from "../utils/erreurs";
+import { ErrorState } from "../components/ui/ErrorState";
 
 interface DomaineCard extends Domaine {
   processus: number;
@@ -59,12 +61,14 @@ export function DomainesPage() {
   const [domaineEnEdition, setDomaineEnEdition] = useState<DomaineCard | null>(null);
   const [domaineToDelete, setDomaineToDelete] = useState<DomaineCard | null>(null);
   const [query, setQuery] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number>();
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const fetchDomaines = async () => {
+    setLoadError(null);
     try {
       const data = await domainesApi.list();
       const withCounts = await Promise.all(
@@ -81,7 +85,9 @@ export function DomainesPage() {
       );
       setDomaines(withCounts);
     } catch (error) {
-      console.error("Erreur:", error);
+      // Sans ce catch, l'échec affichait des compteurs à zéro, indiscernables
+      // de domaines réellement vides.
+      setLoadError(messageErreur(error));
     } finally {
       setLoading(false);
     }
@@ -127,6 +133,26 @@ export function DomainesPage() {
 
   if (loading) {
     return <DomainesSkeleton />;
+  }
+
+  if (loadError) {
+    return (
+      <div className="font-poppins">
+        <div className="mb-6">
+          <h1 className="font-poppins text-3xl font-bold tracking-tight text-[#0c1d31] dark:text-white">
+            Domaines
+          </h1>
+          <p className="mt-1 font-poppins text-sm text-[#0c1d31]/70 dark:text-white/60">
+            Explorez et gérez les domaines métier
+          </p>
+        </div>
+        <ErrorState
+          message="Impossible de charger les domaines."
+          detail={loadError}
+          onRetry={fetchDomaines}
+        />
+      </div>
+    );
   }
 
   return (

@@ -103,14 +103,6 @@ export function LoginPage() {
           >
             {isSubmitting ? "Connexion..." : "Se connecter"}
           </button>
-
-          <button
-            type="button"
-            onClick={() => navigate("/mot-de-passe-oublie")}
-            className="mt-4 block w-full text-center text-[15px] text-[#5a6b7d] no-underline hover:text-[#071c38]"
-          >
-            Mot de passe oublié ?
-          </button>
         </form>
       </div>
     </div>

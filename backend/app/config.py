@@ -7,9 +7,16 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/sgb_techtrace"
 
     # JWT
+    # Valeur de repli UNIQUEMENT pour le développement local. En production,
+    # app.main refuse de démarrer si cette valeur n'a pas été remplacée :
+    # une clé connue permet de forger des tokens valides et de contourner
+    # toute l'authentification (cf. _verifier_secret_jwt dans main.py).
     JWT_SECRET: str = "votre_cle_secrete_tres_longue_et_complexe"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 1440  # 24 heures
+
+    # Environnement : "development" (défaut) ou "production".
+    ENVIRONMENT: str = "development"
 
     # Supabase Storage
     SUPABASE_URL: str = ""

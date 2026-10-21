@@ -60,7 +60,7 @@ def create_procedure(
 ):
     db_procedure = ProcedureStockee(**procedure.model_dump())
     db.add(db_procedure)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_procedure)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="procedure",
@@ -85,7 +85,7 @@ def update_procedure(
     for key, value in procedure.model_dump(exclude_unset=True).items():
         setattr(db_procedure, key, value)
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_procedure)
     enregistrer_historique(
         db, utilisateur=user, action="modification", type_entite="procedure",
@@ -109,7 +109,6 @@ def delete_procedure(
 
     avant = snapshot(db_procedure)
     db.delete(db_procedure)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="suppression", type_entite="procedure",
         entite_id=procedure_id, nom_entite=avant.get("nom", "?"),

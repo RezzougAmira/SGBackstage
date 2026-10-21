@@ -62,7 +62,7 @@ def create_process(
 
     db_process = Process(**{**process.model_dump(), "domaine_id": domaine_id})
     db.add(db_process)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_process)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="process",
@@ -91,7 +91,7 @@ def update_process(
     for key, value in process.model_dump(exclude_unset=True).items():
         setattr(db_process, key, value)
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_process)
     enregistrer_historique(
         db, utilisateur=user, action="modification", type_entite="process",
@@ -117,7 +117,6 @@ def delete_process(
 
     avant = snapshot(db_process)
     db.delete(db_process)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="suppression", type_entite="process",
         entite_id=process_id, nom_entite=avant.get("nom", "?"),

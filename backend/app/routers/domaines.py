@@ -105,7 +105,7 @@ def create_domaine(
 
     db_domaine = Domaine(**domaine.model_dump())
     db.add(db_domaine)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_domaine)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="domaine",
@@ -130,7 +130,7 @@ def update_domaine(
     for key, value in domaine.model_dump(exclude_unset=True).items():
         setattr(db_domaine, key, value)
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_domaine)
     enregistrer_historique(
         db, utilisateur=user, action="modification", type_entite="domaine",
@@ -152,7 +152,6 @@ def delete_domaine(
 
     avant = snapshot(db_domaine)
     db.delete(db_domaine)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="suppression", type_entite="domaine",
         entite_id=domaine_id, nom_entite=avant.get("nom", "?"),

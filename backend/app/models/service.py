@@ -29,8 +29,8 @@ class MasqueService(Base):
     __tablename__ = "masque_services"
 
     id = Column(Integer, primary_key=True)
-    masque_id = Column(Integer, ForeignKey("masques.id", ondelete="CASCADE"))
-    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"))
+    masque_id = Column(Integer, ForeignKey("masques.id", ondelete="CASCADE"), index=True)
+    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"), index=True)
 
     masque = relationship("Masque", back_populates="services")
     service = relationship("Service", back_populates="masques")

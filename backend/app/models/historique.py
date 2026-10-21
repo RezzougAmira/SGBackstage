@@ -17,7 +17,7 @@ class Historique(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     utilisateur_id = Column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     action = Column(String(20), nullable=False)
     type_entite = Column(String(30), nullable=False)

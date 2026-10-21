@@ -11,7 +11,7 @@ class Etape(Base):
     nom = Column(String(255), nullable=False)
     description = Column(String, nullable=True)
     ordre = Column(Integer, nullable=False)
-    process_id = Column(Integer, ForeignKey("processes.id", ondelete="CASCADE"), nullable=False)
+    process_id = Column(Integer, ForeignKey("processes.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

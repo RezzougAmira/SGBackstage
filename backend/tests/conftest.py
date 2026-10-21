@@ -133,7 +133,23 @@ def app(engine):
             application.include_router(routeur)
 
     Session = sessionmaker(bind=engine)
-    application.dependency_overrides[get_db] = lambda: Session()
+
+    def _session_de_test():
+        """Reproduit get_db, y compris le rollback sur exception.
+
+        Les tests vérifient ainsi le comportement réel : une requête qui
+        échoue ne doit rien laisser à moitié écrit.
+        """
+        session = Session()
+        try:
+            yield session
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    application.dependency_overrides[get_db] = _session_de_test
     return application
 
 

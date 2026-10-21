@@ -26,8 +26,8 @@ class EtapeMasque(Base):
     __tablename__ = "etape_masques"
 
     id = Column(Integer, primary_key=True)
-    etape_id = Column(Integer, ForeignKey("etapes.id", ondelete="CASCADE"))
-    masque_id = Column(Integer, ForeignKey("masques.id", ondelete="CASCADE"))
+    etape_id = Column(Integer, ForeignKey("etapes.id", ondelete="CASCADE"), index=True)
+    masque_id = Column(Integer, ForeignKey("masques.id", ondelete="CASCADE"), index=True)
 
     etape = relationship("Etape", back_populates="masques")
     masque = relationship("Masque", back_populates="etapes")

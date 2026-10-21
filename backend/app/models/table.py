@@ -22,8 +22,8 @@ class ProcedureTable(Base):
     __tablename__ = "procedure_tables"
 
     id = Column(Integer, primary_key=True)
-    procedure_id = Column(Integer, ForeignKey("procedures_stockees.id", ondelete="CASCADE"))
-    table_id = Column(Integer, ForeignKey("tables_info.id", ondelete="CASCADE"))
+    procedure_id = Column(Integer, ForeignKey("procedures_stockees.id", ondelete="CASCADE"), index=True)
+    table_id = Column(Integer, ForeignKey("tables_info.id", ondelete="CASCADE"), index=True)
 
     procedure = relationship("ProcedureStockee", back_populates="tables")
     table = relationship("TableInfo", back_populates="procedures")

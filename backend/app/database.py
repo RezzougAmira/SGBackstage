@@ -15,9 +15,18 @@ Base = declarative_base()
 
 
 def get_db():
-    """Dependency pour obtenir une session de base de données."""
+    """Dependency pour obtenir une session de base de données.
+
+    En cas d'exception pendant la requête, la transaction est annulée : si
+    une mutation a été faite sans être committée (parce que le commit est
+    porté par l'écriture du journal, cf. utils/historique.py) et que
+    l'écriture échoue, rien ne doit rester à moitié appliqué.
+    """
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

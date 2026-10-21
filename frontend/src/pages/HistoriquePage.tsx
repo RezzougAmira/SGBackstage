@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { SkeletonTable } from '../components/ui/Skeleton';
 import { historiqueApi } from '../api/historique';
+import { messageErreur } from '../utils/erreurs';
+import { ErrorInline } from '../components/ui/ErrorState';
+import { Toast } from '../components/ui/Toast';
 import {
   HISTORIQUE_ACTIONS,
   HISTORIQUE_ENTITES,
@@ -129,7 +132,9 @@ export function HistoriquePage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deplie, setDeplie] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   // Filtre « historique d'un élément » lancé depuis le détail d'une ligne.
   const [entiteFiltre, setEntiteFiltre] = useState<{ id: number; nom: string } | null>(null);
 
@@ -157,12 +162,15 @@ export function HistoriquePage() {
 
   const charger = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await historiqueApi.list({ ...filtresBase(), page, par_page: parPage });
       setEvenements(data.evenements);
       setTotal(data.total);
     } catch (error) {
-      console.error("Erreur lors du chargement du journal:", error);
+      // Sans ce catch, l'échec affichait un journal vide, indiscernable
+      // d'un historique réellement sans événement.
+      setLoadError(messageErreur(error));
     } finally {
       setLoading(false);
     }
@@ -246,7 +254,7 @@ export function HistoriquePage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Erreur lors de l'export CSV:", error);
-      window.alert("L'export CSV a échoué. Réessayez.");
+      setToast("L'export CSV a échoué. Réessayez.");
     } finally {
       setExporting(false);
     }
@@ -444,26 +452,40 @@ export function HistoriquePage() {
                 </tr>
               </thead>
               <tbody>
-                {evenements.map((evt, i) => (
-                  <EventRows
-                    key={evt.id}
-                    evt={evt}
-                    zebra={i % 2 === 1}
-                    deplie={deplie === evt.id}
-                    onToggle={() => setDeplie(deplie === evt.id ? null : evt.id)}
-                    onFiltrerEntite={filtrerParEntite}
-                  />
-                ))}
-
-                {evenements.length === 0 && (
+                {loadError ? (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-8 py-10 text-center font-poppins text-sm text-[#525f6d] dark:text-white/60"
-                    >
-                      Aucun événement ne correspond à votre recherche.
+                    <td colSpan={6}>
+                      <ErrorInline
+                        message="Impossible de charger le journal."
+                        onRetry={charger}
+                      />
                     </td>
                   </tr>
+                ) : (
+                  <>
+                    {evenements.map((evt, i) => (
+                      <EventRows
+                        key={evt.id}
+                        evt={evt}
+                        zebra={i % 2 === 1}
+                        deplie={deplie === evt.id}
+                        onToggle={() => setDeplie(deplie === evt.id ? null : evt.id)}
+                        onFiltrerEntite={filtrerParEntite}
+                        onToast={setToast}
+                      />
+                    ))}
+
+                    {evenements.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="px-8 py-10 text-center font-poppins text-sm text-[#525f6d] dark:text-white/60"
+                        >
+                          Aucun événement ne correspond à votre recherche.
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>
@@ -577,6 +599,7 @@ export function HistoriquePage() {
           </div>
         </>
       )}
+       <Toast message={toast} onClose={() => setToast(null)} variant="erreur" />
     </div>
   );
 }
@@ -591,12 +614,14 @@ function EventRows({
   deplie,
   onToggle,
   onFiltrerEntite,
+  onToast,
 }: {
   evt: HistoriqueEvent;
   zebra: boolean;
   deplie: boolean;
   onToggle: () => void;
   onFiltrerEntite: (evt: HistoriqueEvent) => void;
+  onToast?: (msg: string) => void;
 }) {
   return (
     <>
@@ -641,7 +666,7 @@ function EventRows({
       {deplie && (
         <tr className="border-b border-[#dcdce1] border-[#dcdce1] last:border-none bg-[#f2f1f1] dark:border-white/10 dark:bg-white/5">
           <td colSpan={6} className="px-6 pb-5 pt-2">
-            <DetailEvent evt={evt} onFiltrerEntite={() => onFiltrerEntite(evt)} />
+            <DetailEvent evt={evt} onFiltrerEntite={() => onFiltrerEntite(evt)} onToast={onToast} />
           </td>
         </tr>
       )}
@@ -656,9 +681,11 @@ function EventRows({
 function DetailEvent({
   evt,
   onFiltrerEntite,
+  onToast,
 }: {
   evt: HistoriqueEvent;
   onFiltrerEntite?: () => void;
+  onToast?: (msg: string) => void;
 }) {
   // Bascule « seulement les changements » : par défaut, tous les champs
   // restent visibles (comportement historique).
@@ -690,7 +717,7 @@ function DetailEvent({
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Erreur:", error);
-      window.alert("Le téléchargement du dossier a échoué. Réessayez.");
+      onToast?.("Le téléchargement du dossier a échoué. Réessayez.");
     } finally {
       setExporting(false);
     }

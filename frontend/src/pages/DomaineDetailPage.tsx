@@ -9,6 +9,8 @@ import { ConfirmModal } from "../components/ConfirmModal";
 import { DomaineDetailSkeleton } from "../components/ui/pageSkeletons";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
+import { messageErreur } from "../utils/erreurs";
+import { ErrorState } from "../components/ui/ErrorState";
 
 function PlusIcon() {
   return (
@@ -51,12 +53,14 @@ export function DomaineDetailPage() {
   const [processToDelete, setProcessToDelete] = useState<Process | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const toastTimer = useRef<number>();
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const fetchData = async () => {
     if (!id) return;
+    setLoadError(null);
     try {
       const [domaineData, processesData] = await Promise.all([
         domainesApi.get(parseInt(id)),
@@ -65,7 +69,9 @@ export function DomaineDetailPage() {
       setDomaine(domaineData);
       setProcesses(processesData);
     } catch (error) {
-      console.error("Erreur:", error);
+      // Sans ce catch, l'échec laissait « Domaine non trouvé », alors que la
+      // cause est réseau ou serveur.
+      setLoadError(messageErreur(error));
     } finally {
       setLoading(false);
     }
@@ -135,6 +141,19 @@ export function DomaineDetailPage() {
 
   if (loading) {
     return <DomaineDetailSkeleton />;
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <Breadcrumb items={[{ label: "Métiers", path: "/domaines" }, { label: "Domaine" }]} />
+        <ErrorState
+          message="Impossible de charger le domaine."
+          detail={loadError}
+          onRetry={fetchData}
+        />
+      </div>
+    );
   }
 
   if (!domaine) {

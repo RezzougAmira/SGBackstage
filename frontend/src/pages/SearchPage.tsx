@@ -4,25 +4,35 @@ import { SearchResults } from '../types';
 import { searchApi } from '../api/search';
 import { Breadcrumb } from '../components/Breadcrumb';
 import { SearchIdleHint, SearchSkeleton } from '../components/ui/pageSkeletons';
+import { messageErreur } from '../utils/erreurs';
+import { ErrorState } from '../components/ui/ErrorState';
 
 export function SearchPage() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const executerRecherche = async (terme: string) => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const data = await searchApi.search(terme);
+      setResults(data);
+    } catch (error) {
+      // Sans ce catch, l'échec laissait la page dans son état initial,
+      // indiscernable d'une recherche non lancée.
+      setLoadError(messageErreur(error));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-
-    setLoading(true);
-    try {
-      const data = await searchApi.search(query);
-      setResults(data);
-    } catch (error) {
-      console.error('Erreur:', error);
-    } finally {
-      setLoading(false);
-    }
+    setResults(null);
+    await executerRecherche(query);
   };
 
   return (
@@ -54,9 +64,17 @@ export function SearchPage() {
 
       {loading && <SearchSkeleton />}
 
-      {!loading && !results && <SearchIdleHint />}
+      {!loading && loadError && (
+        <ErrorState
+          message="Impossible d'effectuer la recherche."
+          detail={loadError}
+          onRetry={() => executerRecherche(query)}
+        />
+      )}
 
-      {!loading && results && (
+      {!loading && !loadError && !results && <SearchIdleHint />}
+
+      {!loading && !loadError && results && (
         <div className="space-y-6">
           {results.masques.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">

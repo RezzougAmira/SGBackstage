@@ -10,6 +10,8 @@ import { EtapeForm } from "../components/forms/EtapeForm";
 import { ProcessDetailSkeleton } from "../components/ui/pageSkeletons";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
+import { messageErreur } from "../utils/erreurs";
+import { ErrorState } from "../components/ui/ErrorState";
 
 interface ProcessState {
   nom?: string;
@@ -50,19 +52,23 @@ export function ProcessDetailPage() {
   const [showDiagram, setShowDiagram] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const toastTimer = useRef<number>();
 
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const fetchData = async () => {
     if (!id) return;
+    setLoadError(null);
     try {
       const processId = parseInt(id);
       const etapesData = await processesApi.listEtapes(processId);
       const details = await Promise.all(etapesData.map((e) => etapesApi.get(processId, e.id)));
       setEtapes(details);
     } catch (error) {
-      console.error("Erreur:", error);
+      // Sans ce catch, l'échec laissait une page sans étapes, indiscernable
+      // d'un processus réellement vide.
+      setLoadError(messageErreur(error));
     } finally {
       setLoading(false);
     }
@@ -183,6 +189,24 @@ export function ProcessDetailPage() {
 
   if (loading) {
     return <ProcessDetailSkeleton />;
+  }
+
+  if (loadError) {
+    return (
+      <div>
+        <Breadcrumb
+          items={[
+            { label: "Métiers", path: "/domaines" },
+            { label: processState?.nom || "Process" },
+          ]}
+        />
+        <ErrorState
+          message="Impossible de charger le processus."
+          detail={loadError}
+          onRetry={fetchData}
+        />
+      </div>
+    );
   }
 
   const diagrammeUrl = processState?.diagramme_url ?? null;

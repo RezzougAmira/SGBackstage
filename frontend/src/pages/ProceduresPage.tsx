@@ -8,6 +8,8 @@ import { ProcedureForm } from "../components/forms/ProcedureForm";
 import { EntityHistory } from "../components/EntityHistory";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
+import { messageErreur } from "../utils/erreurs";
+import { ErrorState } from "../components/ui/ErrorState";
 
 const PAGE_SIZE = 10;
 
@@ -174,13 +176,19 @@ export function ProceduresPage() {
   const [filtreService, setFiltreService] = useState("");
   // Tri par colonne : "nom" | "description" | "services". null = ordre d'origine.
   const [tri, setTri] = useState<{ cle: TriCle; asc: boolean } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const t = useRef<number>();
 
   useEffect(() => setPage(1), [query, tri, filtreService]);
   useEffect(() => () => window.clearTimeout(t.current), []);
   const fetch = async () => {
+    setLoadError(null);
     try {
       setProcedures(await proceduresApi.list());
+    } catch (e) {
+      // Sans ce catch, un échec laissait un tableau vide, indiscernable
+      // d'un référentiel réellement vide.
+      setLoadError(messageErreur(e));
     } finally {
       setLoading(false);
     }
@@ -320,7 +328,7 @@ export function ProceduresPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Erreur lors de l'export CSV:", error);
-      window.alert("L'export CSV a échoué. Réessayez.");
+      show("L'export CSV a échoué. Réessayez.");
     } finally {
       setExporting(false);
     }
@@ -417,6 +425,12 @@ export function ProceduresPage() {
 
       {loading ? (
         <TableSkeleton />
+      ) : loadError ? (
+        <ErrorState
+          message="Impossible de charger les procédures."
+          detail={loadError}
+          onRetry={fetch}
+        />
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-[#e6e8f5] bg-white dark:border-white/10 dark:bg-[#131313]">
           <table className="min-w-full divide-y divide-[#e6e8f5] dark:divide-white/10">

@@ -48,7 +48,7 @@ def create_attribut(
 
     db_attribut = Attribut(**donnees)
     db.add(db_attribut)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_attribut)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="attribut",
@@ -77,7 +77,7 @@ def update_attribut(
     for key, value in attribut.model_dump(exclude_unset=True).items():
         setattr(db_attribut, key, value)
 
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_attribut)
     enregistrer_historique(
         db, utilisateur=user, action="modification", type_entite="attribut",
@@ -103,7 +103,6 @@ def delete_attribut(
 
     avant = snapshot(db_attribut)
     db.delete(db_attribut)
-    db.commit()
     enregistrer_historique(
         db, utilisateur=user, action="suppression", type_entite="attribut",
         entite_id=attribut_id, nom_entite=avant.get("nom", "?"),

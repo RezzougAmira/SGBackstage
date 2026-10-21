@@ -46,7 +46,7 @@ def create_archive(
 
     db_archive = Archive(**archive.model_dump())
     db.add(db_archive)
-    db.commit()
+    db.flush()  # transaction ouverte : commit au journal
     db.refresh(db_archive)
     enregistrer_historique(
         db, utilisateur=user, action="creation", type_entite="archive",
