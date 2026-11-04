@@ -141,7 +141,7 @@ _verifier_secret_jwt()
 
 # Créer l'application FastAPI
 app = FastAPI(
-    title="SGBackstage API",
+    title="SGB Trésor API",
     description="API pour la plateforme de documentation technique du SGB",
     version="1.0.0"
 )
@@ -194,7 +194,7 @@ app.include_router(upload_router)
 @app.get("/")
 def root():
     return {
-        "message": "SGBackstage API",
+        "message": "SGB Trésor API",
         "docs": "/docs",
         "version": "1.0.0"
     }

@@ -1,4 +1,4 @@
-# SGBackstage
+# SGB Trésor
 
 **Plateforme web de documentation technique du système SGB**
 

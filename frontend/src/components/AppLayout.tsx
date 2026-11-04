@@ -167,7 +167,7 @@ export function AppLayout() {
         }`}
       >
         <div className="flex flex-col items-center gap-1 border-b border-white/20 pb-0">
-          <img alt="AGBackstage" className="h-36 w-36 object-contain" src={imgLogo} />
+          <img alt="SGB Trésor" className="h-36 w-36 object-contain" src={imgLogo} />
         </div>
 
         <nav className="mt-6 flex flex-col gap-2">
