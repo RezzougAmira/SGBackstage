@@ -6,6 +6,7 @@ from ..models.process import Process
 from ..models.etape import Etape
 from ..models.user import User
 from ..schemas.process import ProcessCreate, ProcessUpdate, ProcessResponse
+from ..schemas.common import PageParams, PaginatedResponse
 from ..utils import impact
 from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
@@ -13,17 +14,28 @@ from ..utils.historique import enregistrer_historique, snapshot
 router = APIRouter(prefix="/api/domaines/{domaine_id}/processes", tags=["processes"])
 
 
-@router.get("/", response_model=List[ProcessResponse])
-def list_processes(domaine_id: int, db: Session = Depends(get_db),
+@router.get("/", response_model=PaginatedResponse[ProcessResponse])
+def list_processes(
+    domaine_id: int,
+    pagination: PageParams = Depends(),
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    processes = db.query(Process).filter(Process.domaine_id == domaine_id).all()
+    """Liste paginée des processus d'un domaine."""
+    query = db.query(Process).filter(Process.domaine_id == domaine_id)
+    total = query.count()
+    items = (
+        query.order_by(Process.nom)
+        .offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
+        .all()
+    )
     result = []
-    for process in processes:
+    for process in items:
         process_dict = ProcessResponse.from_orm(process)
         process_dict.etape_count = len(process.etapes)
         result.append(process_dict)
-    return result
+    return PaginatedResponse.create(result, total, pagination)
 
 
 @router.get("/{process_id}", response_model=ProcessResponse)

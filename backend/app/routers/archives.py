@@ -5,18 +5,28 @@ from ..database import get_db
 from ..models.archive import Archive
 from ..models.user import User
 from ..schemas.archive import ArchiveCreate, ArchiveResponse
+from ..schemas.common import PageParams, PaginatedResponse
 from ..utils.deps import get_current_user, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/archives", tags=["archives"])
 
 
-@router.get("/", response_model=List[ArchiveResponse])
-def list_archives(db: Session = Depends(get_db),
+@router.get("/", response_model=PaginatedResponse[ArchiveResponse])
+def list_archives(
+    pagination: PageParams = Depends(),
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    archives = db.query(Archive).order_by(Archive.date_push.desc()).all()
-    return [ArchiveResponse.from_orm(a) for a in archives]
+    """Liste paginée des archives (plus récentes d'abord)."""
+    query = db.query(Archive).order_by(Archive.date_push.desc())
+    total = query.count()
+    items = (
+        query.offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return PaginatedResponse.create([ArchiveResponse.from_orm(a) for a in items], total, pagination)
 
 
 @router.get("/{archive_id}")

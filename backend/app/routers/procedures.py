@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from ..database import get_db
 from ..models.procedure import ProcedureStockee
 from ..models.user import User
 from ..schemas.procedure import ProcedureCreate, ProcedureResponse
+from ..schemas.common import PageParams, PaginatedResponse
 from ..utils import impact
 from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
@@ -34,12 +36,35 @@ def _serialiser(procedure: ProcedureStockee) -> ProcedureResponse:
     )
 
 
-@router.get("/", response_model=List[ProcedureResponse])
-def list_procedures(db: Session = Depends(get_db),
+@router.get("/", response_model=PaginatedResponse[ProcedureResponse])
+def list_procedures(
+    pagination: PageParams = Depends(),
+    q: Optional[str] = Query(
+        None,
+        max_length=100,
+        description="Recherche par nom ou description (insensible à la casse)",
+    ),
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    procedures = db.query(ProcedureStockee).all()
-    return [_serialiser(p) for p in procedures]
+    """Liste paginée des procédures stockées, avec recherche optionnelle."""
+    query = db.query(ProcedureStockee)
+    if q and q.strip():
+        terme = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                ProcedureStockee.nom.ilike(terme),
+                ProcedureStockee.description.ilike(terme),
+            )
+        )
+    total = query.count()
+    items = (
+        query.order_by(ProcedureStockee.nom)
+        .offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return PaginatedResponse.create([_serialiser(p) for p in items], total, pagination)
 
 
 @router.get("/{procedure_id}", response_model=ProcedureResponse)

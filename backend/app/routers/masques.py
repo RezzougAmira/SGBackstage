@@ -20,6 +20,7 @@ from ..schemas.masque import (
     MasqueSuppressionResult,
     SuppressionRapport,
 )
+from ..schemas.common import PageParams, PaginatedResponse
 
 router = APIRouter(prefix="/api/masques", tags=["masques"])
 etape_masques_router = APIRouter(prefix="/api", tags=["masques"])
@@ -68,25 +69,26 @@ def _serialiser(masque: Masque, db: Session) -> MasqueResponse:
     )
 
 
-@router.get("/", response_model=List[MasqueResponse])
+@router.get("/", response_model=PaginatedResponse[MasqueResponse])
 def list_masques(
     search: Optional[str] = Query(None, max_length=100),
-    limit: Optional[int] = Query(None, ge=1, le=500),
-    offset: int = Query(0, ge=0),
+    pagination: PageParams = Depends(),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Liste des masques.
-
-    `limit`/`offset` optionnels : sans eux, toute la liste est renvoyée
-    (comportement historique, aucun changement requis côté frontend).
-    """
+    """Liste paginée des masques."""
     query = db.query(Masque)
     if search:
         query = query.filter(Masque.code.ilike(f"%{search}%"))
-    if limit is not None:
-        query = query.offset(offset).limit(limit)
-    return [_serialiser(m, db) for m in query.all()]
+
+    total = query.count()
+    items = (
+        query.order_by(Masque.code)
+        .offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return PaginatedResponse.create([_serialiser(m, db) for m in items], total, pagination)
 
 
 @router.get("/{masque_id}", response_model=MasqueResponse)

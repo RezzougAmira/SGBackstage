@@ -5,23 +5,34 @@ from ..database import get_db
 from ..models.table import TableInfo
 from ..models.user import User
 from ..schemas.table import TableCreate, TableResponse
+from ..schemas.common import PageParams, PaginatedResponse
 from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
 router = APIRouter(prefix="/api/tables", tags=["tables"])
 
 
-@router.get("/", response_model=List[TableResponse])
-def list_tables(db: Session = Depends(get_db),
+@router.get("/", response_model=PaginatedResponse[TableResponse])
+def list_tables(
+    pagination: PageParams = Depends(),
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    tables = db.query(TableInfo).all()
+    """Liste paginée des tables."""
+    query = db.query(TableInfo)
+    total = query.count()
+    items = (
+        query.order_by(TableInfo.nom)
+        .offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
+        .all()
+    )
     result = []
-    for table in tables:
+    for table in items:
         table_dict = TableResponse.from_orm(table)
         table_dict.attribut_count = len(table.attributs)
         result.append(table_dict)
-    return result
+    return PaginatedResponse.create(result, total, pagination)
 
 
 @router.get("/{table_id}", response_model=TableResponse)

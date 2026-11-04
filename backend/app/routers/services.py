@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from ..database import get_db
@@ -8,6 +9,7 @@ from ..models.procedure import ProcedureStockee, ServiceProcedure
 from ..models.user import User
 from ..schemas.service import ServiceCreate, ServiceResponse
 from ..schemas.procedure import ProcedureCreate, ProcedureResponse
+from ..schemas.common import PageParams, PaginatedResponse
 from .procedures import _serialiser as _serialiser_procedure
 from ..utils import impact
 from ..utils.deps import get_current_user, require_deleter, require_writer
@@ -183,23 +185,43 @@ def detacher_procedure(
     )
 
 
-@router.get("/", response_model=List[ServiceResponse])
+@router.get("/", response_model=PaginatedResponse[ServiceResponse])
 def list_services(
-    limit: Optional[int] = Query(None, ge=1, le=500),
-    offset: int = Query(0, ge=0),
+    pagination: PageParams = Depends(),
+    q: Optional[str] = Query(
+        None,
+        max_length=100,
+        description="Recherche par nom, URL, contrôleur ou description (insensible à la casse)",
+    ),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Liste des services.
+    """Liste paginée des services, avec recherche plein texte optionnelle.
 
-    `limit`/`offset` sont OPTIONNELS : sans eux, le comportement historique est
-    conservé (toute la liste), ce qui n'impose aucune modification au frontend.
-    Les gros référentiels peuvent paginer en fournissant `limit`.
+    La recherche est faite en base : le front n'a plus besoin de charger les
+    500 premiers services puis de filtrer localement (ce qui masquait les
+    services au-delà de la limite de pagination).
     """
-    requete = db.query(Service)
-    if limit is not None:
-        requete = requete.offset(offset).limit(limit)
-    return [_serialiser(s) for s in requete.all()]
+    query = db.query(Service)
+    if q and q.strip():
+        terme = f"%{q.strip()}%"
+        query = query.filter(
+            or_(
+                Service.nom.ilike(terme),
+                Service.url.ilike(terme),
+                Service.controleur.ilike(terme),
+                Service.input_desc.ilike(terme),
+                Service.output_desc.ilike(terme),
+            )
+        )
+    total = query.count()
+    items = (
+        query.order_by(Service.nom)
+        .offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return PaginatedResponse.create([_serialiser(s) for s in items], total, pagination)
 
 
 @router.get("/{service_id}", response_model=ServiceResponse)

@@ -30,6 +30,7 @@ from ..schemas.etape import (
     ProcedureRef,
     TableRef,
 )
+from ..schemas.common import PageParams, PaginatedResponse
 
 router = APIRouter(prefix="/api/processes/{process_id}/etapes", tags=["etapes"])
 etapes_standalone_router = APIRouter(prefix="/api", tags=["etapes"])
@@ -88,12 +89,22 @@ def _build_detail(etape: Etape) -> EtapeDetailResponse:
     return data
 
 
-@router.get("/", response_model=List[EtapeResponse])
-def list_etapes(process_id: int, db: Session = Depends(get_db),
+@router.get("/", response_model=PaginatedResponse[EtapeResponse])
+def list_etapes(
+    process_id: int,
+    pagination: PageParams = Depends(),
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    etapes = db.query(Etape).filter(Etape.process_id == process_id).order_by(Etape.ordre).all()
-    return [EtapeResponse.from_orm(e) for e in etapes]
+    """Liste paginée des étapes d'un processus."""
+    query = db.query(Etape).filter(Etape.process_id == process_id).order_by(Etape.ordre)
+    total = query.count()
+    items = (
+        query.offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return PaginatedResponse.create([EtapeResponse.from_orm(e) for e in items], total, pagination)
 
 
 def _charger_etape(db: Session, process_id: int, etape_id: int) -> Etape:

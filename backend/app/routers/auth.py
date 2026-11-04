@@ -12,6 +12,7 @@ from ..schemas.user import (
     UserAdminUpdate,
     Token,
 )
+from ..schemas.common import PageParams, PaginatedResponse
 from ..utils import limiteur_connexion
 from ..utils.auth import get_password_hash, verify_password, create_access_token
 from ..utils.deps import get_current_user, require_admin
@@ -118,12 +119,21 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 
-@router.get("/users", response_model=List[UserResponse])
+@router.get("/users", response_model=PaginatedResponse[UserResponse])
 def list_users(
+    pagination: PageParams = Depends(),
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    return db.query(User).all()
+    """Liste paginée des utilisateurs (admin seulement)."""
+    query = db.query(User).order_by(User.created_at.desc())
+    total = query.count()
+    items = (
+        query.offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return PaginatedResponse.create(items, total, pagination)
 
 
 @router.post("/users", response_model=UserResponse, status_code=201)

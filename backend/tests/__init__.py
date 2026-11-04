@@ -1,1 +1,1 @@
-"""Suite de tests du backend SGBackstage."""
+"""Suite de tests du backend SGB Trésor."""

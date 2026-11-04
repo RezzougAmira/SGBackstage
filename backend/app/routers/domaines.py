@@ -8,6 +8,7 @@ from ..models.etape import Etape
 from ..models.process import Process
 from ..models.user import User
 from ..schemas.domaine import DomaineCreate, DomaineResponse
+from ..schemas.common import PageParams, PaginatedResponse
 from ..utils import impact
 from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.export_docx import build_domaine_document
@@ -31,24 +32,29 @@ def _serialize(domaine: Domaine):
     return domaine_dict
 
 
-@router.get("/", response_model=List[DomaineResponse])
+@router.get("/", response_model=PaginatedResponse[DomaineResponse])
 def list_domaines(
+    pagination: PageParams = Depends(),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    # Eager loading de tout le graphe domaine > process > etapes > masques :
-    # sans lui, _serialize déclenchait des centaines de requêtes (N+1) pour
-    # compter les masques de chaque domaine.
-    domaines = (
+    """Liste paginée des domaines."""
+    query = (
         db.query(Domaine)
         .options(
             selectinload(Domaine.processes)
             .selectinload(Process.etapes)
             .selectinload(Etape.masques)
         )
+    )
+    total = query.count()
+    items = (
+        query.order_by(Domaine.nom)
+        .offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
         .all()
     )
-    return [_serialize(domaine) for domaine in domaines]
+    return PaginatedResponse.create([_serialize(d) for d in items], total, pagination)
 
 
 @router.get("/{domaine_id}", response_model=DomaineResponse)

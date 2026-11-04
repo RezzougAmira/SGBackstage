@@ -6,6 +6,7 @@ from ..models.attribut import Attribut
 from ..models.table import TableInfo
 from ..models.user import User
 from ..schemas.attribut import AttributCreate, AttributResponse
+from ..schemas.common import PageParams, PaginatedResponse
 from ..utils.deps import get_current_user, require_deleter, require_writer
 from ..utils.historique import enregistrer_historique, snapshot
 
@@ -22,14 +23,23 @@ def _verifier_table(db: Session, table_id: int) -> TableInfo:
     return table
 
 
-@router.get("/", response_model=List[AttributResponse])
+@router.get("/", response_model=PaginatedResponse[AttributResponse])
 def list_attributs(
     table_id: int,
+    pagination: PageParams = Depends(),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    attributs = db.query(Attribut).filter(Attribut.table_id == table_id).all()
-    return [AttributResponse.from_orm(a) for a in attributs]
+    """Liste paginée des attributs d'une table."""
+    query = db.query(Attribut).filter(Attribut.table_id == table_id)
+    total = query.count()
+    items = (
+        query.order_by(Attribut.nom)
+        .offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
+        .all()
+    )
+    return PaginatedResponse.create([AttributResponse.from_orm(a) for a in items], total, pagination)
 
 
 @router.post("/", response_model=AttributResponse, status_code=201)

@@ -18,6 +18,7 @@ from ..schemas.fonctionnalite import (
     ProcedureRef,
     TableRef,
 )
+from ..schemas.common import PageParams, PaginatedResponse
 
 router = APIRouter(prefix="/api/fonctionnalites", tags=["fonctionnalites"])
 
@@ -101,19 +102,27 @@ def _serialiser(fonctionnalite: Fonctionnalite) -> dict:
     ).model_dump()
 
 
-@router.get("/masque/{masque_id}", response_model=List[FonctionnaliteResponse])
-def list_par_masque(masque_id: int, db: Session = Depends(get_db),
+@router.get("/masque/{masque_id}", response_model=PaginatedResponse[FonctionnaliteResponse])
+def list_par_masque(
+    masque_id: int,
+    pagination: PageParams = Depends(),
+    db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Fonctionnalités d'un masque, dans l'ordre saisi."""
-    fonctionnalites = (
+    """Fonctionnalités paginées d'un masque, dans l'ordre saisi."""
+    query = (
         db.query(Fonctionnalite)
         .options(*_options_chargement())
         .filter(Fonctionnalite.masque_id == masque_id)
         .order_by(Fonctionnalite.ordre, Fonctionnalite.id)
+    )
+    total = query.count()
+    items = (
+        query.offset((pagination.page - 1) * pagination.page_size)
+        .limit(pagination.page_size)
         .all()
     )
-    return [_serialiser(f) for f in fonctionnalites]
+    return PaginatedResponse.create([_serialiser(f) for f in items], total, pagination)
 
 
 @router.get("/{fonctionnalite_id}", response_model=FonctionnaliteResponse)
