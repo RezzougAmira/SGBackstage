@@ -1,6 +1,22 @@
 // Types TypeScript pour l'application
 
 // ======================
+// PAGINATION
+// ======================
+export interface PageParams {
+  page: number;
+  page_size: number;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+// ======================
 // AUTH
 // ======================
 export interface User {
@@ -342,7 +358,7 @@ export interface HistoriqueFilters {
   jusqua?: string;
   search?: string;
   page?: number;
-  par_page?: number;
+  page_size?: number;  // Renommé de par_page pour cohérence avec le standard
 }
 
 export const HISTORIQUE_ACTIONS: Record<HistoriqueAction, string> = {

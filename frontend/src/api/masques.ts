@@ -1,5 +1,5 @@
 import { api } from './client';
-import { Masque, MasqueImpact, MasqueSuppressionResult } from '../types';
+import { Masque, MasqueImpact, MasqueSuppressionResult, PaginatedResponse } from '../types';
 
 export interface MasqueServiceInfo {
   nom: string;
@@ -9,10 +9,20 @@ export interface MasqueServiceInfo {
   output_desc?: string;
 }
 
+export interface MasquesListParams {
+  search?: string;
+  page?: number;
+  page_size?: number;
+}
+
 export const masquesApi = {
-  list: (search?: string) => {
-    const params = search ? `?search=${encodeURIComponent(search)}` : '';
-    return api.get<Masque[]>(`/api/masques${params}`);
+  list: (params?: MasquesListParams) => {
+    const searchParams = new URLSearchParams();
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.page_size) searchParams.set('page_size', params.page_size.toString());
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return api.get<PaginatedResponse<Masque>>(`/api/masques${query}`);
   },
 
   get: (id: number) => api.get<Masque>(`/api/masques/${id}`),

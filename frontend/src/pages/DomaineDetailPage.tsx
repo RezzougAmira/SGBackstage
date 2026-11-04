@@ -62,12 +62,12 @@ export function DomaineDetailPage() {
     if (!id) return;
     setLoadError(null);
     try {
-      const [domaineData, processesData] = await Promise.all([
+      const [domaineData, processesResponse] = await Promise.all([
         domainesApi.get(parseInt(id)),
-        domainesApi.listProcesses(parseInt(id)),
+        domainesApi.listProcesses(parseInt(id), 1, 500),
       ]);
       setDomaine(domaineData);
-      setProcesses(processesData);
+      setProcesses(processesResponse.items);
     } catch (error) {
       // Sans ce catch, l'échec laissait « Domaine non trouvé », alors que la
       // cause est réseau ou serveur.

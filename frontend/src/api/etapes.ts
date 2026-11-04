@@ -1,7 +1,11 @@
 import { api } from './client';
-import { Etape, EtapeDetail, EtapeImpact, EtapeSuppressionResult } from '../types';
+import { Etape, EtapeDetail, EtapeImpact, EtapeSuppressionResult, PaginatedResponse } from '../types';
 
 export const etapesApi = {
+  // Liste paginée des étapes d'un processus
+  list: (processId: number, page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<Etape>>(`/api/processes/${processId}/etapes?page=${page}&page_size=${page_size}`),
+
   get: (processId: number, id: number) =>
     api.get<EtapeDetail>(`/api/processes/${processId}/etapes/${id}`),
 

@@ -1,5 +1,5 @@
 import { api } from './client';
-import { Process, Etape } from '../types';
+import { Process, Etape, PaginatedResponse } from '../types';
 
 export const processesApi = {
   get: (domaineId: number, id: number) =>
@@ -15,8 +15,8 @@ export const processesApi = {
     api.delete(`/api/domaines/${domaineId}/processes/${id}`),
 
   // Étapes d'un process
-  listEtapes: (processId: number) =>
-    api.get<Etape[]>(`/api/processes/${processId}/etapes`),
+  listEtapes: (processId: number, page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<Etape>>(`/api/processes/${processId}/etapes?page=${page}&page_size=${page_size}`),
 
   // Document Word du process (toutes ses étapes), généré côté serveur.
   exportDocx: (processId: number) =>

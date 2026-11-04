@@ -1,5 +1,5 @@
 import { api } from './client';
-import { User, Token } from '../types';
+import { User, Token, PaginatedResponse } from '../types';
 
 /**
  * Mise à jour de son propre profil. L'API n'accepte que le nom et la photo :
@@ -26,7 +26,8 @@ export const authApi = {
 
   me: () => api.get<User>('/api/auth/me'),
 
-  listUsers: () => api.get<User[]>('/api/auth/users'),
+  listUsers: (page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<User>>(`/api/auth/users?page=${page}&page_size=${page_size}`),
 
   createUser: (data: { email: string; password: string; name: string; role?: string }) =>
     api.post<User>('/api/auth/users', data),

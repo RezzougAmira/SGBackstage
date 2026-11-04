@@ -139,7 +139,7 @@ export function EntityHistory({
     () => ({
       type_entite: typeEntite,
       entite_id: entiteId,
-      par_page: 50,
+      page_size: 50,
     }),
     [typeEntite, entiteId]
   );

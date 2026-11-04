@@ -164,7 +164,7 @@ export function HistoriquePage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await historiqueApi.list({ ...filtresBase(), page, par_page: parPage });
+      const data = await historiqueApi.list({ ...filtresBase(), page, page_size: parPage });
       setEvenements(data.evenements);
       setTotal(data.total);
     } catch (error) {
@@ -224,11 +224,11 @@ export function HistoriquePage() {
     if (total === 0 || exporting) return;
     setExporting(true);
     try {
-      const premier = await historiqueApi.list({ ...filtresBase(), page: 1, par_page: 200 });
+      const premier = await historiqueApi.list({ ...filtresBase(), page: 1, page_size: 200 });
       let tous = premier.evenements;
       const nbPages = Math.ceil(premier.total / 200);
       for (let p = 2; p <= nbPages; p++) {
-        const suite = await historiqueApi.list({ ...filtresBase(), page: p, par_page: 200 });
+        const suite = await historiqueApi.list({ ...filtresBase(), page: p, page_size: 200 });
         tous = tous.concat(suite.evenements);
       }
 

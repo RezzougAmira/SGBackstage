@@ -315,7 +315,8 @@ export function ServicesPage() {
   const fetch = async () => {
     setLoadError(null);
     try {
-      setServices(await servicesApi.list());
+      const response = await servicesApi.list(1, 500);
+      setServices(response.items);
       setErr(null);
     } catch (e) {
       // Sans ce catch, un échec laissait un tableau vide, indiscernable
@@ -327,7 +328,7 @@ export function ServicesPage() {
   };
   useEffect(() => {
     fetch();
-  }, []);
+  }, [query, tri, filtreMethode]);
   const filtered = useMemo(
     () =>
       services.filter((s) => {

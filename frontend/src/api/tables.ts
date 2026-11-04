@@ -1,8 +1,9 @@
 import { api } from './client';
-import { Table, Attribut } from '../types';
+import { Table, Attribut, PaginatedResponse } from '../types';
 
 export const tablesApi = {
-  list: () => api.get<Table[]>('/api/tables'),
+  list: (page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<Table>>(`/api/tables?page=${page}&page_size=${page_size}`),
 
   get: (id: number) => api.get<Table>(`/api/tables/${id}`),
 
@@ -15,6 +16,6 @@ export const tablesApi = {
   delete: (id: number) => api.delete(`/api/tables/${id}`),
 
   // Attributs d'une table
-  listAttributs: (tableId: number) =>
-    api.get<Attribut[]>(`/api/tables/${tableId}/attributs`),
+  listAttributs: (tableId: number, page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<Attribut>>(`/api/tables/${tableId}/attributs?page=${page}&page_size=${page_size}`),
 };

@@ -184,7 +184,8 @@ export function ProceduresPage() {
   const fetch = async () => {
     setLoadError(null);
     try {
-      setProcedures(await proceduresApi.list());
+      const response = await proceduresApi.list(1, 500);
+      setProcedures(response.items);
     } catch (e) {
       // Sans ce catch, un échec laissait un tableau vide, indiscernable
       // d'un référentiel réellement vide.
@@ -195,7 +196,7 @@ export function ProceduresPage() {
   };
   useEffect(() => {
     fetch();
-  }, []);
+  }, [query, tri, filtreService]);
   const filtered = useMemo(
     () =>
       procedures.filter((p) => {

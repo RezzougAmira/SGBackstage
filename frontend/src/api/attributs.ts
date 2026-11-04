@@ -1,7 +1,10 @@
 import { api } from './client';
-import { Attribut } from '../types';
+import { Attribut, PaginatedResponse } from '../types';
 
 export const attributsApi = {
+  list: (tableId: number, page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<Attribut>>(`/api/tables/${tableId}/attributs?page=${page}&page_size=${page_size}`),
+
   create: (tableId: number, data: { nom: string; type: string }) =>
     api.post<Attribut>(`/api/tables/${tableId}/attributs`, { ...data, table_id: tableId }),
 

@@ -70,13 +70,13 @@ export function DomainesPage() {
   const fetchDomaines = async () => {
     setLoadError(null);
     try {
-      const data = await domainesApi.list();
+      const response = await domainesApi.list(1, 500);
       const withCounts = await Promise.all(
-        data.map(async (d) => {
+        response.items.map(async (d) => {
           let etapes = 0;
           try {
-            const processus = await domainesApi.listProcesses(d.id);
-            etapes = processus.reduce((sum, p) => sum + (p.etape_count || 0), 0);
+            const processusResponse = await domainesApi.listProcesses(d.id, 1, 500);
+            etapes = processusResponse.items.reduce((sum, p) => sum + (p.etape_count || 0), 0);
           } catch {
             etapes = 0;
           }

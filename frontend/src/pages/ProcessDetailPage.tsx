@@ -62,8 +62,8 @@ export function ProcessDetailPage() {
     setLoadError(null);
     try {
       const processId = parseInt(id);
-      const etapesData = await processesApi.listEtapes(processId);
-      const details = await Promise.all(etapesData.map((e) => etapesApi.get(processId, e.id)));
+      const etapesResponse = await processesApi.listEtapes(processId, 1, 500);
+      const details = await Promise.all(etapesResponse.items.map((e) => etapesApi.get(processId, e.id)));
       setEtapes(details);
     } catch (error) {
       // Sans ce catch, l'échec laissait une page sans étapes, indiscernable

@@ -1,8 +1,19 @@
 import { api } from './client';
-import { Procedure } from '../types';
+import { Procedure, PaginatedResponse } from '../types';
 
 export const proceduresApi = {
-  list: () => api.get<Procedure[]>('/api/procedures'),
+  list: (page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<Procedure>>(`/api/procedures?page=${page}&page_size=${page_size}`),
+
+  /** Recherche serveur par nom ou description. */
+  search: (q: string, page = 1, page_size = 20) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(page_size),
+    });
+    if (q.trim()) params.set('q', q.trim());
+    return api.get<PaginatedResponse<Procedure>>(`/api/procedures?${params.toString()}`);
+  },
 
   get: (id: number) => api.get<Procedure>(`/api/procedures/${id}`),
 

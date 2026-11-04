@@ -1,8 +1,9 @@
 import { api } from './client';
-import { Domaine, Process } from '../types';
+import { Domaine, Process, PaginatedResponse } from '../types';
 
 export const domainesApi = {
-  list: () => api.get<Domaine[]>('/api/domaines'),
+  list: (page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<Domaine>>(`/api/domaines?page=${page}&page_size=${page_size}`),
 
   get: (id: number) => api.get<Domaine>(`/api/domaines/${id}`),
 
@@ -16,8 +17,8 @@ export const domainesApi = {
     api.delete(`/api/domaines/${id}`),
 
   // Process d'un domaine
-  listProcesses: (domaineId: number) =>
-    api.get<Process[]>(`/api/domaines/${domaineId}/processes`),
+  listProcesses: (domaineId: number, page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<Process>>(`/api/domaines/${domaineId}/processes?page=${page}&page_size=${page_size}`),
 
   // Document Word du domaine (tous ses processus avec leurs étapes),
   // généré côté serveur.

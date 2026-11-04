@@ -1,10 +1,10 @@
 import { api } from './client';
-import { Fonctionnalite } from '../types';
+import { Fonctionnalite, PaginatedResponse } from '../types';
 
 export const fonctionnalitesApi = {
-  /** Fonctionnalités d'un masque, avec leurs services et leurs procédures. */
-  listByMasque: (masqueId: number) =>
-    api.get<Fonctionnalite[]>(`/api/fonctionnalites/masque/${masqueId}`),
+  /** Fonctionnalités paginées d'un masque, avec leurs services et leurs procédures. */
+  listByMasque: (masqueId: number, page = 1, page_size = 50) =>
+    api.get<PaginatedResponse<Fonctionnalite>>(`/api/fonctionnalites/masque/${masqueId}?page=${page}&page_size=${page_size}`),
 
   get: (id: number) => api.get<Fonctionnalite>(`/api/fonctionnalites/${id}`),
 

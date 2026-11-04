@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { fonctionnalitesApi } from "../api/fonctionnalites";
 import { servicesApi } from "../api/services";
 import { proceduresApi } from "../api/procedures";
-import { Fonctionnalite, Procedure, Service } from "../types";
+import { Fonctionnalite } from "../types";
 import { ServiceForm } from "./forms/ServiceForm";
 import { ProcedureForm } from "./forms/ProcedureForm";
 import { ConfirmModal } from "./ConfirmModal";
 import { EntityHistory } from "./EntityHistory";
+import { SearchPicker } from "./ui/SearchPicker";
 import { useAuth } from "../hooks/useAuth";
 import { canDelete } from "../utils/roles";
 
@@ -24,8 +25,6 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
   const { user } = useAuth();
   const peutSupprimer = canDelete(user?.role);
   const [fonctionnalites, setFonctionnalites] = useState<Fonctionnalite[]>([]);
-  const [tousServices, setTousServices] = useState<Service[]>([]);
-  const [toutesProcedures, setToutesProcedures] = useState<Procedure[]>([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -121,24 +120,10 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
   const [procDescription, setProcDescription] = useState("");
   const [creationProc, setCreationProc] = useState(false);
 
-  const proceduresDisponiblesPour = (serviceId: number) => {
-    const rattachees = fonctionnalites
-      .flatMap((x) => x.services)
-      .filter((x) => x.id === serviceId)
-      .flatMap((x) => x.procedures);
-    return toutesProcedures.filter((p) => !rattachees.some((r) => r.id === p.id));
-  };
-
   const recharger = async () => {
     try {
-      const [donnees, services, procedures] = await Promise.all([
-        fonctionnalitesApi.listByMasque(masqueId),
-        servicesApi.list(),
-        proceduresApi.list(),
-      ]);
-      setFonctionnalites(donnees);
-      setTousServices(services);
-      setToutesProcedures(procedures);
+      const donnees = await fonctionnalitesApi.listByMasque(masqueId, 1, 500);
+      setFonctionnalites(donnees.items);
       setErreur(null);
     } catch (e: any) {
       setErreur(e?.message ?? "Impossible de charger les fonctionnalités");
@@ -186,7 +171,9 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
       setAjoutServicePour(null);
       await recharger();
     } catch (err: any) {
-      setErreur(err?.message ?? "Ajout du service impossible");
+      // Relancé pour que le combobox garde le panneau ouvert et affiche
+      // l'erreur au bon endroit.
+      throw new Error(err?.message ?? "Ajout du service impossible");
     }
   };
 
@@ -242,7 +229,7 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
       setAjoutProcedurePour(null);
       await recharger();
     } catch (err: any) {
-      setErreur(err?.message ?? "Rattachement impossible");
+      throw new Error(err?.message ?? "Rattachement impossible");
     }
   };
 
@@ -392,9 +379,6 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
       ) : (
         <ul className="space-y-3">
           {fonctionnalites.map((f) => {
-            const servicesDisponibles = tousServices.filter(
-              (s) => !f.services.some((fs) => fs.id === s.id),
-            );
             return (
               <li
                 key={f.id}
@@ -438,26 +422,33 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                 {ajoutServicePour === f.id && (
                   <div className="mt-3 rounded-lg bg-[#f6f8fa] p-3 dark:bg-white/5">
                     <p className="mb-2 font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
-                      Choisir un service existant
+                      Rechercher un service existant
                     </p>
-                    {servicesDisponibles.length === 0 ? (
-                      <p className="font-poppins text-xs text-[#8ea0b3] dark:text-white/40">
-                        Tous les services existants sont déjà rattachés.
-                      </p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {servicesDisponibles.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => void ajouterService(f.id, s.id)}
-                            className="rounded-lg border border-[#e6e8f5] bg-white px-3 py-1.5 font-poppins text-xs text-[#0c1d31] transition hover:border-[#003049] dark:border-white/10 dark:bg-white/5 dark:text-white"
-                          >
-                            {s.nom}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <SearchPicker
+                      autoFocus
+                      titre="Choisir un service"
+                      placeholder="Nom, URL, contrôleur ou description..."
+                      rechercher={async (q, page) => {
+                        const res = await servicesApi.search(q, page, 20);
+                        return {
+                          items: res.items.map((s) => ({
+                            id: s.id,
+                            label: s.nom,
+                            badge: s.methode_http,
+                            meta: s.url,
+                          })),
+                          total: res.total,
+                          page: res.page,
+                          total_pages: res.total_pages,
+                        };
+                      }}
+                      exclure={f.services.map((s) => s.id)}
+                      onSelect={(id) => ajouterService(f.id, id)}
+                    />
+                    <p className="mt-1.5 font-poppins text-[10px] text-[#8ea0b3] dark:text-white/40">
+                      Les services déjà rattachés sont masqués. Utilisez « Liste »
+                      pour parcourir tout le référentiel.
+                    </p>
 
                     <div className="mt-3 border-t border-[#e6e8f5] pt-3 dark:border-white/10">
                       <p className="mb-2 font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
@@ -497,7 +488,6 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
                     {f.services.map((s) => {
                       const cleService = `${f.id}:${s.id}`;
                       const ouvert = serviceOuvert === cleService;
-                      const disponibles = proceduresDisponiblesPour(s.id);
                       return (
                         <li
                           key={s.id}
@@ -669,32 +659,36 @@ export function FonctionnalitesSection({ masqueId }: { masqueId: number }) {
 
                                 {ajoutProcedurePour === cleService && (
                                   <div className="mt-3 rounded-lg bg-[#f6f8fa] p-3 dark:bg-white/5">
-                                    {disponibles.length === 0 ? (
-                                      <p className="mb-2 font-poppins text-xs text-[#8ea0b3] dark:text-white/40">
-                                        Toutes les procédures existantes sont déjà
-                                        rattachées à ce service.
-                                      </p>
-                                    ) : (
-                                      <>
-                                        <p className="mb-2 font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
-                                          Choisir une procédure existante
-                                        </p>
-                                        <div className="flex flex-wrap gap-2">
-                                          {disponibles.map((p) => (
-                                            <button
-                                              key={p.id}
-                                              type="button"
-                                              onClick={() =>
-                                                void attacherProcedure(f.id, s.id, p.id)
-                                              }
-                                              className="rounded-lg border border-[#e6e8f5] bg-white px-3 py-1.5 font-mono text-xs text-[#0c1d31] transition hover:border-[#003049] dark:border-white/10 dark:bg-white/5 dark:text-white"
-                                            >
-                                              {p.nom}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </>
-                                    )}
+                                    <p className="mb-2 font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">
+                                      Rechercher une procédure existante
+                                    </p>
+                                    <SearchPicker
+                                      autoFocus
+                                      titre="Choisir une procédure stockée"
+                                      placeholder="Nom ou description de la procédure..."
+                                      rechercher={async (q, page) => {
+                                        const res = await proceduresApi.search(q, page, 20);
+                                        return {
+                                          items: res.items.map((p) => ({
+                                            id: p.id,
+                                            label: p.nom,
+                                            meta: p.description,
+                                          })),
+                                          total: res.total,
+                                          page: res.page,
+                                          total_pages: res.total_pages,
+                                        };
+                                      }}
+                                      exclure={s.procedures.map((p) => p.id)}
+                                      onSelect={(id) =>
+                                        attacherProcedure(f.id, s.id, id)
+                                      }
+                                    />
+                                    <p className="mt-1.5 font-poppins text-[10px] text-[#8ea0b3] dark:text-white/40">
+                                      Les procédures déjà rattachées à ce service
+                                      sont masquées. Utilisez « Liste » pour
+                                      parcourir tout le référentiel.
+                                    </p>
 
                                     <div className="mb-2 mt-3 border-t border-[#e6e8f5] pt-3 dark:border-white/10">
                                       <p className="font-poppins text-[10px] font-bold uppercase tracking-wider text-[#8ea0b3] dark:text-white/40">

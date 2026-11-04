@@ -177,7 +177,8 @@ export function MasquesPage() {
   const fetch = async () => {
     setLoadError(null);
     try {
-      setMasques(await masquesApi.list());
+      const response = await masquesApi.list({ search: query, page: 1, page_size: 500 });
+      setMasques(response.items);
     } catch (e) {
       // Sans ce catch, un échec laissait un tableau vide, indiscernable
       // d'un référentiel réellement vide.
@@ -188,7 +189,7 @@ export function MasquesPage() {
   };
   useEffect(() => {
     fetch();
-  }, []);
+  }, [query, filtreEtape]);
   const filtered = useMemo(
     () =>
       masques.filter((m) => {

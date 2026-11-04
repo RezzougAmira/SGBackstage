@@ -242,8 +242,8 @@ export function ProfilePage() {
   const fetchUsers = async () => {
     setLoadError(null);
     try {
-      const data = await authApi.listUsers();
-      setUsers(data);
+      const response = await authApi.listUsers(1, 500);
+      setUsers(response.items);
     } catch (error) {
       // Sans ce catch, l'échec affichait « Chargement... » puis une liste vide,
       // indiscernable d'un référentiel sans compte.
