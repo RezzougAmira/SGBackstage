@@ -74,3 +74,92 @@ input:-webkit-autofill:focus {
     animation: none;
   }
 }
+
+/* ---- Animations de la page de connexion ----
+   Mouvements courts et discrets : l'objectif est de rendre l'arrivée sur la
+   page vivante, pas de distraire. Toutes les animations sont neutralisées
+   plus bas si l'utilisateur a demandé « réduire les animations ». */
+@keyframes login-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes login-fade-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes login-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -14px;
+  }
+}
+@keyframes login-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.login-anim-up {
+  /* `backwards` : l'élément est masqué pendant son délai, puis retrouve ses
+     styles normaux à la fin — les transformations au survol restent donc
+     possibles sur le bouton. */
+  animation: login-fade-up 0.65s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+}
+.login-anim-left {
+  animation: login-fade-left 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+}
+.login-anim-float {
+  animation: login-float 7s ease-in-out infinite;
+}
+.login-anim-shake {
+  animation: login-shake 0.45s ease-in-out;
+}
+.login-delay-1 {
+  animation-delay: 0.08s;
+}
+.login-delay-2 {
+  animation-delay: 0.16s;
+}
+.login-delay-3 {
+  animation-delay: 0.24s;
+}
+.login-delay-4 {
+  animation-delay: 0.32s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-anim-up,
+  .login-anim-left,
+  .login-anim-float,
+  .login-anim-shake {
+    animation: none;
+  }
+}

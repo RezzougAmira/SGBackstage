@@ -2,24 +2,58 @@
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
 
+/**
+ * Transforme le corps d'erreur de l'API en message affichable.
+ *
+ * FastAPI renvoie `detail` sous trois formes : une chaîne (erreur métier),
+ * un tableau (validation Pydantic — 422) ou un objet. Passer ce détail
+ * directement à `new Error()` produisait « [object Object] » : on
+ * reconstruit ici un texte lisible pour chaque cas.
+ */
+function detailVersMessage(detail: unknown): string {
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((entree: any) => {
+      const champ = Array.isArray(entree?.loc)
+        ? entree.loc.filter((p: unknown) => p !== 'body' && p !== 'query').pop()
+        : undefined;
+      const msg = typeof entree?.msg === 'string' ? entree.msg : '';
+      return champ ? `${champ} : ${msg}` : msg;
+    }).filter(Boolean);
+    if (messages.length) return messages.join(' · ');
+  }
+  if (detail && typeof detail === 'object') {
+    const msg = (detail as any).message ?? (detail as any).msg;
+    if (typeof msg === 'string' && msg.trim()) return msg;
+  }
+  return 'Erreur serveur';
+}
+
 class ApiClient {
   private baseUrl: string;
   private token: string | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    // Charger le token du localStorage
-    this.token = localStorage.getItem('token');
+    // Le token vit soit dans localStorage (« se souvenir de moi »), soit dans
+    // sessionStorage (session limitée à l'onglet/navigateur).
+    this.token = localStorage.getItem('token') ?? sessionStorage.getItem('token');
   }
 
-  setToken(token: string) {
+  /**
+   * @param persistant true = survit à la fermeture du navigateur
+   *                   (localStorage), false = durée de la session seulement.
+   */
+  setToken(token: string, persistant = true) {
+    this.clearToken();
     this.token = token;
-    localStorage.setItem('token', token);
+    (persistant ? localStorage : sessionStorage).setItem('token', token);
   }
 
   clearToken() {
     this.token = null;
     localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
   }
 
   /**
@@ -32,6 +66,9 @@ class ApiClient {
 
     this.clearToken();
     localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+    // Mémorisé pour que la page de connexion explique la redirection.
+    sessionStorage.setItem('session-expiree', '1');
     window.dispatchEvent(new Event('auth:expired'));
   }
 
@@ -56,7 +93,7 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Erreur réseau' }));
-      throw new Error(error.detail || 'Erreur serveur');
+      throw new Error(detailVersMessage(error?.detail ?? error));
     }
 
     if (response.status === 204) {
@@ -147,7 +184,7 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Erreur réseau' }));
-      throw new Error(error.detail || 'Erreur serveur');
+      throw new Error(detailVersMessage(error?.detail ?? error));
     }
 
     return response.json();
